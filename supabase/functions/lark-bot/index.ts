@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SERVICE_ROLE_KEY")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SERVICE_ROLE_KEY")!,
   );
 
   await supabase.from("lark_message_log").insert({ lark_open_id: openId, message_text: text });
@@ -149,7 +149,7 @@ Deno.serve(async (req) => {
     .maybeSingle();
 
   if (mapError || !mapping?.staff_name) {
-    await sendLarkText("open_id", openId, "还没有绑定你的 Lark 账号和排班姓名，请联系管理员。");
+    await sendLarkText("open_id", openId, `还没有绑定你的 Lark 账号和排班姓名，请联系管理员。\nOpen ID: ${openId}`);
     return Response.json({ ok: true }, { headers: corsHeaders });
   }
 
