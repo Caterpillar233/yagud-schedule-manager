@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Schedule Manager · Admin</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-user-select:none;user-select:none}
+input,select{-webkit-user-select:auto;user-select:auto}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f6fa;color:#1a1a1a;font-size:14px}
+.topbar{background:#fff;border-bottom:1px solid #e8e8e8;padding:0 20px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;gap:8px}
+.tl{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.back{font-size:13px;color:#999;text-decoration:none}.back:hover{color:#1456f0}
+.ttl{font-size:15px;font-weight:600}
+.badge{background:#fff3e0;color:#e65100;font-size:11px;padding:2px 8px;border-radius:10px}
+.room-switch{display:flex;background:#f0f1f4;border-radius:8px;padding:2px;margin-left:6px;gap:2px}
+.rsbtn{border:none;background:transparent;padding:4px 12px;font-size:12px;font-weight:500;color:#666;cursor:pointer;border-radius:6px;transition:all .12s;white-space:nowrap}
+.rsbtn:hover{color:#1a1a1a}
+.rsbtn.on{background:#fff;color:#1456f0;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.rs-reset{border:none;background:transparent;color:#bbb;font-size:13px;cursor:pointer;padding:4px 6px;margin-left:2px;border-radius:6px;line-height:1}
+.rs-reset:hover{color:#1456f0;background:#eef0f4}
+.tr{display:flex;gap:8px;align-items:center;flex-shrink:0}
+.btn{border:1px solid #d0d0d0;background:#fff;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;color:#1a1a1a;white-space:nowrap;transition:background .12s}
+.btn:hover{background:#f0f0f0}
+.btn-blue{background:#1456f0;border-color:#1456f0;color:#fff}.btn-blue:hover{background:#1145cc}
+.btn-purple{background:#7c4dff;border-color:#7c4dff;color:#fff}.btn-purple:hover{background:#6535e0}
+.btn-sm{padding:4px 10px;font-size:12px}
+.lang-btn{border:1px solid #d0d0d0;background:#fff;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;color:#555;letter-spacing:.3px}
+.lang-btn:hover{border-color:#1456f0;color:#1456f0}
+.file-status{font-size:11px;color:#888;padding:3px 9px;border-radius:10px;background:#f0f1f4;display:none;align-items:center;gap:5px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-status.on{display:inline-flex;color:#00875a;background:#e6faf2}
+.file-status.err{color:#c62828;background:#ffebee}
+select,input[type=date],input[type=text],input[type=number]{border:1px solid #d0d0d0;border-radius:8px;padding:6px 10px;font-size:13px;color:#1a1a1a;background:#fff;outline:none}
+select:focus,input:focus{border-color:#1456f0}
+.app{max-width:100%;margin:0 auto;padding:14px 20px}
+.toolbar{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:10px 14px;margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.tsep{width:1px;height:24px;background:#e8e8e8;flex-shrink:0}
+.tlbl{font-size:12px;color:#888;white-space:nowrap}
+.bpill{display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;border:1.5px solid #e8e8e8;font-size:12px;font-weight:500;min-width:120px}
+.bpill.ah{border-color:#1456f0;background:#f0f4ff}
+.bpill.ac{border-color:#00b96b;background:#f0fdf8}
+.bdot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.stat{background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:11px 14px}
+.sn{font-size:20px;font-weight:600;color:#1456f0}
+.sl{font-size:11px;color:#888;margin-top:2px}
+.tabs{display:flex;border-bottom:1px solid #e8e8e8;margin-bottom:14px}
+.tab{padding:9px 16px;font-size:13px;cursor:pointer;color:#999;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tab.on{color:#1456f0;border-bottom-color:#1456f0;font-weight:500}
+/* grid */
+.grid-wrap{overflow:auto;border-radius:10px;border:1px solid #e8e8e8;max-height:calc(100vh - 280px)}
+.gt{border-collapse:collapse;table-layout:fixed;min-width:900px;width:100%}
+.gt th{background:#f8f9fa;font-size:11px;font-weight:600;color:#666;border-bottom:1px solid #e8e8e8;text-align:center;position:sticky;top:0;z-index:10;padding:7px 4px;white-space:nowrap}
+.gt th.tfix{position:sticky;left:0;z-index:20;background:#f8f9fa;text-align:left;padding-left:12px;width:100px}
+.gt tr.subrow th{top:33px;background:#fafbfc;border-bottom:1px solid #e8e8e8;padding:0;font-size:10px}
+.gt tr.subrow th.tfix2{position:sticky;left:0;z-index:19;background:#fafbfc;padding:4px 8px;color:#bbb;font-weight:400;text-align:center;font-size:10px;width:100px}
+.sub-wrap{display:flex}
+.sub-h{flex:1;text-align:center;padding:4px 2px;color:#1456f0;font-weight:700;border-right:1px dashed #dde6ff}
+.sub-c{flex:1;text-align:center;padding:4px 2px;color:#00875a;font-weight:700}
+.gt td{border-bottom:1px solid #f5f5f7;border-right:1px solid #f0f0f0;padding:0;height:22px}
+.gt tr.half-end td{border-bottom:1px solid #e0e3eb}
+.gt td.tc{background:#fafafa;font-size:11px;color:#444;font-weight:500;position:sticky;left:0;z-index:5;border-right:1px solid #e8e8e8;padding:0 10px;white-space:nowrap;width:100px;cursor:default}
+.gt td.tc.half{color:#b5bac4;font-weight:400}
+.we-bg{background:rgba(230,126,34,.05)}
+.gt tbody tr.hour-band td{background:#eef0f4}
+.gt tbody tr.hour-band td.tc{background:#e2e5ec}
+.gt tbody tr.hour-band td.we-bg{background:rgba(230,126,34,.12)}
+.split{display:flex;height:100%;width:100%}
+.sl2{flex:1;display:flex;align-items:center;justify-content:center;cursor:crosshair;font-size:11px;font-weight:500;overflow:hidden;padding:0 2px;transition:filter .08s}
+.sl2:hover{filter:brightness(.88)}
+.sl2.hs{border-right:1px dashed rgba(0,0,0,.07)}
+.sl2.empty{color:#ddd;font-size:14px;font-weight:300}
+.sln{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:56px}
+/* daily-mode cell (multi-person, no left/right split) */
+.gt tr.daily-row td{height:auto;min-height:22px;vertical-align:top}
+.dcell{display:flex;flex-wrap:wrap;gap:2px;padding:2px 3px;min-height:22px;cursor:crosshair;align-content:flex-start}
+.dcell.empty{align-items:center;justify-content:center;color:#ddd;font-size:14px;font-weight:300}
+.dchip{font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;line-height:1.5;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.dmore{font-size:10px;color:#888;background:#eef0f4;padding:1px 6px;border-radius:10px;font-weight:500}
+/* host view */
+.hgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:12px}
+.hcard{background:#fff;border:1px solid #e8e8e8;border-radius:10px;overflow:hidden}
+.hch{padding:10px 14px;display:flex;align-items:center;gap:8px}
+.hdot{width:8px;height:8px;border-radius:50%}
+.hn{font-weight:600;font-size:13px}
+.hr2{font-size:11px;color:#aaa;margin-left:2px}
+.hst{margin-left:auto;font-size:12px;color:#888}
+.hsl{padding:8px 14px}
+.hrl{font-size:10px;font-weight:700;color:#fff;background:#1456f0;padding:1px 8px;border-radius:3px;display:inline-block;margin:6px 0 4px;letter-spacing:.3px}
+.hrl.coord{background:#00875a}
+.hrl.daily{background:#7c4dff}
+.hrl:first-child{margin-top:0}
+.hrtag{font-size:10px;font-weight:700;color:#fff;background:#1456f0;padding:1px 6px;border-radius:3px;flex-shrink:0;letter-spacing:.2px;white-space:nowrap}
+.hrtag.coord{background:#00875a}
+.hrtag.daily{background:#7c4dff}
+.hsr{display:flex;gap:8px;align-items:center;font-size:12px;padding:4px 0;border-bottom:1px solid #f5f5f5;white-space:nowrap}
+.hsr:last-child{border-bottom:none}
+.hdy{color:#aaa;width:30px;flex-shrink:0;font-size:11px}
+.hrm{color:#555;font-size:10px;background:#eef0f4;border-radius:4px;padding:1px 6px;flex-shrink:0;white-space:nowrap;font-weight:500;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.htm{flex:1;text-align:right;color:#1a1a1a;font-variant-numeric:tabular-nums}
+/* time table (single staff grid) */
+.tt-toolbar{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:10px 14px;margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.tt-empty{padding:3rem;text-align:center;color:#bbb;font-size:13px}
+.tt-cell{display:flex;align-items:center;justify-content:center;height:100%;font-size:11px;font-weight:500;padding:0 4px;overflow:hidden}
+.tt-cell.host{background:#e8effe;color:#1456f0}
+.tt-cell.coord{background:#e6faf2;color:#00875a}
+.tt-cell.daily{background:#f0ebff;color:#7c4dff}
+.tt-cell .ttrm{font-size:9px;opacity:.7;margin-left:3px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tt-cell.empty{color:#e0e0e0;font-weight:300}
+.hft{padding:8px 14px;background:#f8f9ff;display:flex;justify-content:space-between;font-size:12px;font-weight:600;color:#1456f0}
+/* settings */
+.sblock{background:#fff;border:1px solid #e8e8e8;border-radius:10px;overflow:hidden;margin-bottom:14px}
+.shead{background:#f8f9fa;padding:9px 14px;font-size:12px;font-weight:600;color:#555;border-bottom:1px solid #e8e8e8}
+.sbody{padding:12px 14px}
+.strow{display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid #f5f5f5}
+.strow:last-of-type{border-bottom:none}
+.cdot{width:11px;height:11px;border-radius:50%;border:none;cursor:pointer;flex-shrink:0}
+.sinp{border:1px solid #d0d0d0;border-radius:6px;padding:4px 8px;font-size:12px;background:#fff;color:#1a1a1a;-webkit-user-select:auto;user-select:auto}
+.del{background:none;border:none;cursor:pointer;color:#ddd;font-size:16px;line-height:1;padding:0 2px}
+.del:hover{color:#e74c3c}
+.toast{position:fixed;bottom:20px;right:20px;background:#1a1a1a;color:#fff;border-radius:8px;padding:10px 16px;font-size:13px;z-index:999;display:none;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+
+/* print styles */
+@media print{
+  .topbar,.toolbar,.tabs,.stats,.no-print{display:none!important}
+  .grid-wrap{max-height:none!important;overflow:visible!important;border:none!important;border-radius:0!important}
+  .gt{min-width:100%!important}
+  .gt th{position:static!important}
+  body{background:#fff}
+  .app{padding:0!important;max-width:100%!important}
+}
+@media(max-width:700px){.stats{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="tl">
+    <a class="back" href="index.html" id="el-back">← Back</a>
+    <span class="ttl" id="el-title">Schedule Manager</span>
+    <span class="badge" id="el-badge">Admin</span>
+    <div class="room-switch no-print" id="room-switch"></div>
+  </div>
+  <div class="tr">
+    <span id="file-status" class="file-status no-print" title=""></span>
+    <button class="btn btn-sm no-print" onclick="connectFile()" id="el-file-connect">📁 Sync to file</button>
+    <button class="btn btn-sm no-print" onclick="loadFromFile()" id="el-file-load">Load from file</button>
+    <button class="lang-btn" id="lang-btn" onclick="toggleLang()">中文</button>
+    <button class="btn btn-sm btn-purple no-print" onclick="printSchedule()" id="el-print">🖨 Print / Export</button>
+  </div>
+</div>
+
+<div class="app">
+<div class="toolbar no-print">
+  <div style="display:flex;align-items:center;gap:7px">
+    <span class="tlbl" id="el-week">Week start:</span>
+    <input type="date" id="week-start" onchange="rebuildDays()" style="width:148px">
+    <button class="btn btn-sm btn-blue" onclick="rebuildDays()" id="el-gen">Generate</button>
+  </div>
+  <div class="tsep"></div>
+  <div style="display:flex;align-items:center;gap:7px">
+    <span class="tlbl" id="el-hbrush">Host brush:</span>
+    <select id="bh" style="width:116px" onchange="onBrushChange('host')"><option value="">— Select —</option></select>
+  </div>
+  <div style="display:flex;align-items:center;gap:7px">
+    <span class="tlbl" id="el-cbrush">Coordinator brush:</span>
+    <select id="bc" style="width:116px" onchange="onBrushChange('coord')"><option value="">— Select —</option></select>
+  </div>
+  <div style="display:flex;align-items:center;gap:7px">
+    <span class="tlbl" id="el-cur">Current:</span>
+    <div class="bpill" id="bpill">
+      <div class="bdot" id="bdot" style="background:#ddd"></div>
+      <span id="bname" style="color:#aaa"></span>
+    </div>
+  </div>
+  <div style="display:flex;gap:7px;margin-left:auto">
+    <button class="btn btn-sm" onclick="clearSched()" id="el-clear">Clear</button>
+    <button class="btn btn-sm" onclick="saveLocal()" id="el-save">Save</button>
+    <button class="btn btn-sm btn-blue" onclick="loadLocal()" id="el-load">Load</button>
+  </div>
+</div>
+
+<div class="stats no-print">
+  <div class="stat"><div class="sn" id="s0">0</div><div class="sl" id="el-s0">Slots scheduled</div></div>
+  <div class="stat"><div class="sn" id="s1">0h</div><div class="sl" id="el-s1">Total hours</div></div>
+  <div class="stat"><div class="sn" id="s3">0%</div><div class="sl" id="el-s3">24h coverage</div></div>
+</div>
+
+<div class="tabs no-print">
+  <div class="tab on" onclick="showTab('grid')" id="el-tab0">Schedule Grid</div>
+  <div class="tab" onclick="showTab('host')" id="el-tab1">Staff View</div>
+  <div class="tab" onclick="showTab('time')" id="el-tab-time">Time Table</div>
+  <div class="tab" onclick="showTab('settings')" id="el-tab3">Settings</div>
+</div>
+
+<!-- GRID -->
+<div id="pane-grid">
+  <div class="grid-wrap"><table class="gt" id="gt"></table></div>
+  <div style="margin-top:6px;font-size:11px;color:#bbb;display:flex;gap:14px;flex-wrap:wrap" class="no-print">
+    <span style="color:#1456f0" id="el-leg1">■ Left = Host</span>
+    <span style="color:#00875a" id="el-leg2">■ Right = Coordinator</span>
+    <span id="el-leg3">Drag to fill · Right-click to clear</span>
+  </div>
+</div>
+
+<!-- HOST VIEW -->
+<div id="pane-host" style="display:none"><div class="hgrid" id="hgrid"></div></div>
+
+<!-- TIME TABLE -->
+<div id="pane-time" style="display:none">
+  <div class="tt-toolbar no-print">
+    <span class="tlbl" id="el-tt-staff">Staff:</span>
+    <select id="tt-select" style="width:200px" onchange="onTimeStaffChange()"></select>
+    <span class="tlbl" id="tt-summary" style="margin-left:auto;color:#1456f0;font-weight:500"></span>
+  </div>
+  <div class="grid-wrap"><table class="gt" id="tt-grid"></table></div>
+</div>
+
+<!-- SETTINGS -->
+<div id="pane-settings" style="display:none">
+  <div class="sblock">
+    <div class="shead" id="el-staffhead">Staff Management</div>
+    <div class="sbody" id="smgr"></div>
+  </div>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════
+// CONSTANTS & STATE
+// ═══════════════════════════════════════
+const HC=['#1456f0','#1565c0','#0288d1','#00838f','#00b96b','#388e3c','#e67e22','#8e24aa','#e53935','#6d4c41'];
+const HL=['#e8effe','#e3f2fd','#e1f5fe','#e0f7fa','#e6faf2','#e8f5e9','#fff3e0','#f3e5f5','#ffebee','#efebe9'];
+
+let lang='en';
+let staff=[
+  {name:'Host A',  role:'host',  c:0},
+  {name:'Host B',  role:'host',  c:1},
+  {name:'Coord A', role:'coord', c:4},
+];
+let rooms=[
+  {id:'r1',name:'YagudFit',nameZh:'YagudFit'},
+  {id:'r2',name:'YagudSport',nameZh:'YagudSport'},
+  {id:'r3',name:'BackupLive',nameZh:'BackupLive'},
+  {id:'daily',name:'Daily Work',nameZh:'日常工作',daily:true},
+];
+let currentRoom='r1';
+let schedAll={r1:{},r2:{},r3:{},daily:{}};
+let sched=schedAll[currentRoom];
+let days=[];
+let brush='', brushRole='';
+let dragging=false, dragMode='fill';
+let _dragWarned=false;
+let ttStaff='';
+const ONLINE_DB={
+  provider:'supabase',
+  url:'',
+  anonKey:'',
+  table:'schedules',
+  id:'main'
+};
+
+// ═══════════════════════════════════════
+// i18n
+// ═══════════════════════════════════════
+const LANG={
+  en:{
+    back:'← Back', title:'Schedule Manager', badge:'Admin',
+    week:'Week start:', gen:'Generate', print:'🖨 Print / Export',
+    hbrush:'Host brush:', cbrush:'Coordinator brush:', cur:'Current:',
+    clear:'Clear', save:'Save', load:'Load',
+    s0:'Slots scheduled', s1:'Weekly broadcast hours', s3:'Weekly work hours',
+    tab0:'Schedule Grid', tab1:'Staff View', tab3:'Settings',
+    'tab-time':'Time Table',
+    'tt-staff':'Staff:', 'tt-pick':'— Select staff —',
+    'tt-week-total':'Weekly total: ',
+    leg1:'■ Left = Host', leg2:'■ Right = Coordinator',
+    leg3:'Drag to fill · Right-click to clear',
+    staffhead:'Staff Management',
+    'no-brush':'None selected',
+    'host-lbl':'Host', 'coord-lbl':'Coordinator',
+    'add-staff':'+ Add', 'staff-ph':'Name',
+    'no-data':'No saved data', 'save-ok':'Saved', 'load-ok':'Loaded', 'clear-ok':'Cleared',
+    'cloud-not-configured':'Online database is not configured yet',
+    'cloud-save-ok':'Saved online',
+    'cloud-load-ok':'Loaded from online database',
+    'cloud-save-fail':'Online save failed',
+    'cloud-load-fail':'Online load failed',
+    'no-brush-toast':'Please select a brush first',
+    'pane-empty':'Please select a week start date first',
+    'no-schedule':'No shifts this week',
+    subtotal:'Subtotal',
+    'host-b':'HOST', 'coord-b':'COORD',
+    'room-rename':'Rename room',
+    'room-reset':'Reset room names to default',
+    'room-reset-confirm':'Reset all room names to default? (Schedules will not be affected)',
+    'daily-name':'Daily Work',
+    'daily-tip':'Click cells to add staff to daily work · Click again to remove',
+    'fs-connect':'📁 Sync to file',
+    'fs-load':'Load from file',
+    'fs-disconnect':'📁 Disconnect',
+    'fs-connected':'Synced: ',
+    'fs-unsupported':'Your browser does not support file sync. Use Chrome/Edge.',
+    'fs-perm-denied':'File permission denied',
+    'fs-write-fail':'Write to file failed',
+    'fs-load-ok':'Loaded from file',
+    'fs-load-fail':'Load failed',
+    'fs-confirm-load':'Replace current data with file contents?',
+    'fs-disconnect-confirm':'Stop syncing to file? (Local data is kept)',
+    'busy':' is already scheduled at this time',
+  },
+  zh:{
+    back:'← 返回', title:'排班管理', badge:'管理员',
+    week:'排班周起始：', gen:'生成', print:'🖨 打印 / 导出',
+    hbrush:'主播笔刷：', cbrush:'场控笔刷：', cur:'当前：',
+    clear:'清空', save:'保存', load:'读取',
+    s0:'已排时段', s1:'本周总直播时长', s3:'本周总工作时长',
+    tab0:'时间排班表', tab1:'员工视图', tab3:'员工设置',
+    'tab-time':'工时表',
+    'tt-staff':'员工：', 'tt-pick':'— 请选择 —',
+    'tt-week-total':'本周合计：',
+    leg1:'■ 左半格 = 主播', leg2:'■ 右半格 = 场控',
+    leg3:'按住拖拽批量填入 · 右键清空',
+    staffhead:'员工管理',
+    'no-brush':'未选择',
+    'host-lbl':'主播', 'coord-lbl':'场控',
+    'add-staff':'+ 添加', 'staff-ph':'姓名',
+    'no-data':'没有已保存的数据', 'save-ok':'已保存', 'load-ok':'已读取', 'clear-ok':'已清空',
+    'cloud-not-configured':'尚未配置线上数据库',
+    'cloud-save-ok':'已保存到线上数据库',
+    'cloud-load-ok':'已从线上数据库读取',
+    'cloud-save-fail':'线上保存失败',
+    'cloud-load-fail':'线上读取失败',
+    'no-brush-toast':'请先选择笔刷',
+    'pane-empty':'请先选择排班周起始日',
+    'no-schedule':'本周暂无排班',
+    subtotal:'合计',
+    'host-b':'主播', 'coord-b':'场控',
+    'room-rename':'重命名直播间',
+    'room-reset':'恢复默认直播间名称',
+    'room-reset-confirm':'恢复所有直播间名称为默认？（排班数据不受影响）',
+    'daily-name':'日常工作',
+    'daily-tip':'点击格子将员工加入日常工作 · 再次点击移除',
+    'fs-connect':'📁 同步到文件',
+    'fs-load':'从文件加载',
+    'fs-disconnect':'📁 断开同步',
+    'fs-connected':'已同步：',
+    'fs-unsupported':'当前浏览器不支持文件同步，请使用 Chrome/Edge',
+    'fs-perm-denied':'未获得文件访问权限',
+    'fs-write-fail':'写入文件失败',
+    'fs-load-ok':'已从文件加载',
+    'fs-load-fail':'加载失败',
+    'fs-confirm-load':'用文件中的数据替换当前数据？',
+    'fs-disconnect-confirm':'停止同步到文件？（本地数据保留）',
+    'busy':'已在该时段有其他排班',
+  }
+};
+const T=k=>(LANG[lang][k]||LANG.en[k]||k);
+
+function applyLang(){
+  const map={
+    'el-back':'back','el-title':'title','el-badge':'badge',
+    'el-week':'week','el-gen':'gen','el-print':'print',
+    'el-hbrush':'hbrush','el-cbrush':'cbrush','el-cur':'cur',
+    'el-clear':'clear','el-save':'save','el-load':'load',
+    'el-s0':'s0','el-s1':'s1','el-s3':'s3',
+    'el-tab0':'tab0','el-tab1':'tab1','el-tab3':'tab3','el-tab-time':'tab-time',
+    'el-tt-staff':'tt-staff',
+    'el-leg1':'leg1','el-leg2':'leg2','el-leg3':'leg3',
+    'el-staffhead':'staffhead',
+    'el-file-connect':'fs-connect','el-file-load':'fs-load',
+  };
+  Object.entries(map).forEach(([id,key])=>{
+    const el=document.getElementById(id);
+    if(el) el.textContent=T(key);
+  });
+  const bn=document.getElementById('bname');
+  if(!brush){ bn.textContent=T('no-brush'); bn.style.color='#aaa'; }
+}
+function toggleLang(){
+  lang=lang==='en'?'zh':'en';
+  document.getElementById('lang-btn').textContent=lang==='en'?'中文':'EN';
+  applyLang(); renderRoomSwitch(); renderAll();
+}
+
+// ═══════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════
+const pad=n=>String(n).padStart(2,'0');
+const gds=d=>d.toISOString().slice(0,10);
+const SLOTS_PER_DAY=48;
+function slotLabel(s){const h=Math.floor(s/2),m=(s%2)*30;return pad(h)+':'+pad(m);}
+function slotEndLabel(s){return slotLabel((s+1)%SLOTS_PER_DAY);}
+
+// ═══════════════════════════════════════
+// ROOMS
+// ═══════════════════════════════════════
+function renderRoomSwitch(){
+  const wrap=document.getElementById('room-switch'); if(!wrap) return;
+  wrap.innerHTML='';
+  rooms.forEach(r=>{
+    const btn=document.createElement('button');
+    btn.className='rsbtn'+(r.id===currentRoom?' on':'');
+    const labelText=r.daily?T('daily-name'):(lang==='zh'?r.nameZh:r.name);
+    btn.textContent=labelText;
+    btn.title=r.daily?'':T('room-rename');
+    btn.onclick=()=>switchRoom(r.id);
+    if(!r.daily) btn.ondblclick=ev=>{ev.stopPropagation();renameRoom(r.id);};
+    wrap.appendChild(btn);
+  });
+  const reset=document.createElement('button');
+  reset.className='rs-reset';
+  reset.textContent='↺';
+  reset.title=T('room-reset');
+  reset.onclick=resetRoomNames;
+  wrap.appendChild(reset);
+}
+function resetRoomNames(){
+  if(!confirm(T('room-reset-confirm'))) return;
+  const defaults={r1:'YagudFit',r2:'YagudSport',r3:'BackupLive'};
+  rooms.forEach(r=>{
+    if(r.daily) return;
+    if(defaults[r.id]){ r.name=defaults[r.id]; r.nameZh=defaults[r.id]; }
+  });
+  renderRoomSwitch(); autosave();
+}
+function switchRoom(id){
+  if(id===currentRoom) return;
+  currentRoom=id;
+  sched=schedAll[currentRoom];
+  renderRoomSwitch(); renderAll();
+  if(document.getElementById('pane-host').style.display!=='none') renderHostView();
+  autosave();
+}
+function renameRoom(id){
+  const r=rooms.find(x=>x.id===id); if(!r) return;
+  const cur=lang==='zh'?r.nameZh:r.name;
+  const v=prompt(T('room-rename'),cur);
+  if(v==null) return;
+  const t=v.trim(); if(!t) return;
+  if(lang==='zh') r.nameZh=t; else r.name=t;
+  renderRoomSwitch(); autosave();
+}
+
+// ═══════════════════════════════════════
+// DAYS
+// ═══════════════════════════════════════
+function rebuildDays(){
+  const ws=document.getElementById('week-start').value; if(!ws) return;
+  const EN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const ZH=['日','一','二','三','四','五','六'];
+  days=[];
+  const base=new Date(ws+'T00:00:00');
+  for(let i=0;i<7;i++){
+    const d=new Date(base); d.setDate(base.getDate()+i);
+    const dw=d.getDay(), mo=d.getMonth()+1, da=d.getDate();
+    days.push({date:gds(d), en:EN[dw]+' '+mo+'/'+da, zh:'周'+ZH[dw]+' '+mo+'/'+da, we:dw===0||dw===6});
+  }
+  renderAll(); autosave();
+}
+
+// ═══════════════════════════════════════
+// GRID
+// ═══════════════════════════════════════
+function isDailyRoom(){return !!(rooms.find(r=>r.id===currentRoom)||{}).daily;}
+function getDailyArr(key){const v=sched[key];return Array.isArray(v)?v:[];}
+function _busyElsewhere(name,date,slot,exceptRoom,exceptRole){
+  for(const rid in schedAll){
+    const sc=schedAll[rid];
+    if(rid==='daily'){
+      if(exceptRoom==='daily') continue;
+      const v=sc[`${date}_${slot}_daily`];
+      if(Array.isArray(v)&&v.includes(name)) return true;
+    } else {
+      const hv=sc[`${date}_${slot}_host`];
+      const cv=sc[`${date}_${slot}_coord`];
+      if(rid===exceptRoom){
+        if(exceptRole!=='host'&&hv===name) return true;
+        if(exceptRole!=='coord'&&cv===name) return true;
+      } else {
+        if(hv===name||cv===name) return true;
+      }
+    }
+  }
+  if(exceptRoom!=='daily'){
+    const v=schedAll.daily&&schedAll.daily[`${date}_${slot}_daily`];
+    if(Array.isArray(v)&&v.includes(name)) return true;
+  }
+  return false;
+}
+function dailyChipsHtml(arr){
+  if(!arr||!arr.length) return '+';
+  const max=3;
+  const head=arr.slice(0,max).map(name=>{
+    const si=staff.findIndex(x=>x.name===name); if(si<0) return '';
+    const s=staff[si];
+    return `<span class="dchip" style="background:${HL[s.c%10]};color:${HC[s.c%10]}">${name}</span>`;
+  }).join('');
+  const more=arr.length>max?`<span class="dmore" title="${arr.slice(max).join(', ')}">+${arr.length-max}</span>`:'';
+  return head+more;
+}
+function renderGrid(){
+  const tbl=document.getElementById('gt');
+  if(!days.length){
+    tbl.innerHTML=`<tr><td style="padding:3rem;text-align:center;color:#bbb;font-size:13px" colspan="8">${T('pane-empty')}</td></tr>`;
+    updateStats(); return;
+  }
+  let h='<colgroup><col style="width:100px">';
+  days.forEach(()=>h+='<col>');  // let columns auto-fill remaining width
+  h+='</colgroup><thead><tr><th class="tfix">Time</th>';
+  days.forEach(d=>{
+    const lbl=lang==='zh'?d.zh:d.en; const parts=lbl.split(' ');
+    h+=`<th style="${d.we?'color:#e67e22':''}">${parts[0]}<br><span style="font-weight:400;color:#bbb">${parts[1]}</span></th>`;
+  });
+  h+='</tr>';
+  const daily=isDailyRoom();
+  if(!daily){
+    h+=`<tr class="subrow"><th class="tfix tfix2">${T('host-b')} / ${T('coord-b')}</th>`;
+    days.forEach(()=>h+=`<th><div class="sub-wrap"><div class="sub-h">${T('host-b')}</div><div class="sub-c">${T('coord-b')}</div></div></th>`);
+    h+='</tr>';
+  }
+  h+='</thead><tbody>';
+  for(let s=0;s<SLOTS_PER_DAY;s++){
+    const isHour=(s%2)===0;
+    const halfEnd=!isHour;
+    const bandCls=Math.floor(s/2)%2===1?' hour-band':'';
+    const rowCls=(daily?'daily-row':'')+bandCls+(halfEnd?' half-end':'');
+    const tcCls=isHour?'tc':'tc half';
+    const timeStr=isHour?(pad(s/2)+':00'):(pad((s-1)/2)+':30');
+    h+=`<tr class="${rowCls}"><td class="${tcCls}">${timeStr}</td>`;
+    days.forEach(d=>{
+      const tdCls=d.we?'we-bg':'';
+      if(daily){
+        const dk=`${d.date}_${s}_daily`;
+        const arr=getDailyArr(dk);
+        const cls=arr.length?'dcell':'dcell empty';
+        h+=`<td class="${tdCls}"><div class="${cls}" data-k="${dk}" data-r="daily">${dailyChipsHtml(arr)}</div></td>`;
+        return;
+      }
+      const hk=`${d.date}_${s}_host`, ck=`${d.date}_${s}_coord`;
+      const hn=sched[hk]||'', cn=sched[ck]||'';
+      const hi=staff.findIndex(x=>x.name===hn&&x.role==='host');
+      const ci=staff.findIndex(x=>x.name===cn&&x.role==='coord');
+      const hSlot=hi>=0
+        ?`<div class="sl2 hs" data-k="${hk}" data-r="host" style="background:${HL[staff[hi].c%10]};color:${HC[staff[hi].c%10]}"><span class="sln">${hn}</span></div>`
+        :`<div class="sl2 hs empty" data-k="${hk}" data-r="host">+</div>`;
+      const cSlot=ci>=0
+        ?`<div class="sl2" data-k="${ck}" data-r="coord" style="background:${HL[staff[ci].c%10]};color:${HC[staff[ci].c%10]}"><span class="sln">${cn}</span></div>`
+        :`<div class="sl2 empty" data-k="${ck}" data-r="coord">+</div>`;
+      h+=`<td class="${tdCls}"><div class="split">${hSlot}${cSlot}</div></td>`;
+    });
+    h+='</tr>';
+  }
+  h+='</tbody>';
+  tbl.innerHTML=h;
+  bindDrag(); updateStats();
+}
+
+function bindDrag(){
+  const tbl=document.getElementById('gt');
+  tbl.onmousedown=e=>{
+    const sl=e.target.closest('[data-k]'); if(!sl) return;
+    if(e.button===2){paint(sl.dataset.k,sl.dataset.r,true);return;}
+    if(e.button!==0) return;
+    dragging=true;
+    _dragWarned=false;
+    if(sl.dataset.r==='daily'){
+      const arr=getDailyArr(sl.dataset.k);
+      dragMode=(brush&&arr.includes(brush))?'clear':'fill';
+    } else {
+      dragMode=(sched[sl.dataset.k]===brush&&brush!=='')?'clear':'fill';
+    }
+    paint(sl.dataset.k,sl.dataset.r,false); e.preventDefault();
+  };
+  tbl.onmouseover=e=>{
+    if(!dragging) return;
+    const sl=e.target.closest('[data-k]'); if(!sl) return;
+    paint(sl.dataset.k,sl.dataset.r,false);
+  };
+  document.onmouseup=()=>dragging=false;
+  tbl.oncontextmenu=e=>e.preventDefault();
+}
+
+function paint(key,role,erase){
+  const parts=key.split('_'); const ds=parts[0], slot=parseInt(parts[1]);
+  if(role==='daily'){
+    if(erase){ delete sched[key]; refreshSlot(key,role); updateStats(); autosave(); return; }
+    if(!brush){showToast(T('no-brush-toast'));return;}
+    let arr=getDailyArr(key);
+    if(dragMode==='clear'){
+      arr=arr.filter(n=>n!==brush);
+    } else {
+      if(!arr.includes(brush)){
+        if(_busyElsewhere(brush,ds,slot,currentRoom,'daily')){
+          if(!_dragWarned){_dragWarned=true;showToast(brush+T('busy'));}
+          return;
+        }
+        arr=[...arr,brush];
+      }
+    }
+    if(arr.length) sched[key]=arr; else delete sched[key];
+    refreshSlot(key,role); updateStats(); autosave(); return;
+  }
+  if(!erase&&dragMode==='fill'){
+    if(!brush){showToast(T('no-brush-toast'));return;}
+    if(brushRole!==role) return;
+    if(sched[key]!==brush && _busyElsewhere(brush,ds,slot,currentRoom,role)){
+      if(!_dragWarned){_dragWarned=true;showToast(brush+T('busy'));}
+      return;
+    }
+    sched[key]=brush;
+  } else { delete sched[key]; }
+  refreshSlot(key,role); updateStats(); autosave();
+}
+
+function refreshSlot(key,role){
+  const el=document.querySelector(`[data-k="${key}"]`); if(!el) return;
+  if(role==='daily'){
+    const arr=getDailyArr(key);
+    el.className=arr.length?'dcell':'dcell empty';
+    el.innerHTML=dailyChipsHtml(arr);
+    return;
+  }
+  const name=sched[key]||''; const si=staff.findIndex(x=>x.name===name&&x.role===role);
+  const isH=role==='host';
+  if(si>=0){
+    const s=staff[si];
+    el.className=`sl2${isH?' hs':''}`;
+    el.style.background=HL[s.c%10]; el.style.color=HC[s.c%10];
+    el.innerHTML=`<span class="sln">${name}</span>`;
+  } else {
+    el.className=`sl2${isH?' hs':''} empty`;
+    el.style.background=''; el.style.color=''; el.innerHTML='+';
+  }
+}
+
+// ═══════════════════════════════════════
+// BRUSH
+// ═══════════════════════════════════════
+function onBrushChange(role){
+  if(role==='host'&&document.getElementById('bh').value) document.getElementById('bc').value='';
+  if(role==='coord'&&document.getElementById('bc').value) document.getElementById('bh').value='';
+  const hv=document.getElementById('bh').value, cv=document.getElementById('bc').value;
+  if(hv){brush=hv;brushRole='host';}
+  else if(cv){brush=cv;brushRole='coord';}
+  else{brush='';brushRole='';}
+  const pill=document.getElementById('bpill'), bn=document.getElementById('bname');
+  if(!brush){
+    document.getElementById('bdot').style.background='#ddd';
+    bn.textContent=T('no-brush'); bn.style.color='#aaa';
+    pill.className='bpill'; return;
+  }
+  const si=staff.findIndex(x=>x.name===brush&&x.role===brushRole);
+  if(si>=0){
+    const col=HC[staff[si].c%10];
+    document.getElementById('bdot').style.background=col;
+    bn.textContent=brush+' ('+(brushRole==='host'?T('host-lbl'):T('coord-lbl'))+')';
+    bn.style.color=col;
+    pill.className='bpill '+(brushRole==='host'?'ah':'ac');
+  }
+}
+
+function rebuildDrops(){
+  const bh=document.getElementById('bh'), bc=document.getElementById('bc');
+  const hv=bh.value, cv=bc.value;
+  bh.innerHTML=`<option value="">— Select —</option>`+staff.filter(s=>s.role==='host').map(s=>`<option value="${s.name}">${s.name}</option>`).join('');
+  bc.innerHTML=`<option value="">— Select —</option>`+staff.filter(s=>s.role==='coord').map(s=>`<option value="${s.name}">${s.name}</option>`).join('');
+  if(staff.find(s=>s.name===hv&&s.role==='host')) bh.value=hv;
+  if(staff.find(s=>s.name===cv&&s.role==='coord')) bc.value=cv;
+}
+
+// ═══════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════
+function updateStats(){
+  let slots=0, broadcastSlots=0, workSlots=0;
+  const weekDates=new Set(days.map(d=>d.date));
+  const isSelectedWeekKey=k=>weekDates.has((k||'').split('_')[0]);
+  // current room slots (first card)
+  Object.keys(sched).forEach(k=>{
+    if(!isSelectedWeekKey(k)) return;
+    const v=sched[k]; if(!v) return;
+    if(Array.isArray(v)) slots+=v.length; else slots++;
+  });
+  // cross-room: broadcast = host slots in r1/r2/r3; work = all slots everywhere, limited to the selected week
+  ['r1','r2','r3'].forEach(rid=>{
+    const sc=schedAll[rid]||{};
+    Object.keys(sc).forEach(k=>{
+      if(!isSelectedWeekKey(k)) return;
+      if(!sc[k]) return;
+      if(k.endsWith('_host')) broadcastSlots++;
+      workSlots++;
+    });
+  });
+  const dsc=schedAll.daily||{};
+  Object.keys(dsc).forEach(k=>{
+    if(!isSelectedWeekKey(k)) return;
+    const v=dsc[k]; if(!v) return;
+    if(Array.isArray(v)) workSlots+=v.length; else workSlots++;
+  });
+  document.getElementById('s0').textContent=slots;
+  const bh=broadcastSlots*0.5;
+  document.getElementById('s1').textContent=(Number.isInteger(bh)?bh:bh.toFixed(1))+'h';
+  const wh=workSlots*0.5;
+  document.getElementById('s3').textContent=(Number.isInteger(wh)?wh:wh.toFixed(1))+'h';
+}
+
+// ═══════════════════════════════════════
+// HOST VIEW & TIME TABLE
+// ═══════════════════════════════════════
+function _hrFmt(n){return Number.isInteger(n)?String(n):n.toFixed(1);}
+function _ttRebuildSelect(){
+  const sel=document.getElementById('tt-select'); if(!sel) return;
+  const names=Array.from(new Set(staff.map(s=>s.name)));
+  const cur=ttStaff && names.includes(ttStaff)?ttStaff:'';
+  let html=`<option value="">${T('tt-pick')}</option>`;
+  names.forEach(n=>{ html+=`<option value="${n}" ${n===cur?'selected':''}>${n}</option>`; });
+  sel.innerHTML=html;
+  ttStaff=cur;
+}
+function onTimeStaffChange(){
+  ttStaff=document.getElementById('tt-select').value;
+  renderTimeTable();
+}
+function renderTimeTable(){
+  _ttRebuildSelect();
+  const tbl=document.getElementById('tt-grid');
+  const sumEl=document.getElementById('tt-summary');
+  if(!days.length){
+    tbl.innerHTML=`<tr><td class="tt-empty" colspan="8">${T('pane-empty')}</td></tr>`;
+    sumEl.textContent=''; return;
+  }
+  if(!ttStaff){
+    tbl.innerHTML=`<tr><td class="tt-empty" colspan="8">${T('tt-pick')}</td></tr>`;
+    sumEl.textContent=''; return;
+  }
+  const cellMap={};
+  let totSlots=0;
+  days.forEach(day=>{
+    for(let s=0;s<SLOTS_PER_DAY;s++){
+      let hit=null;
+      for(const rm of rooms){
+        const sc=schedAll[rm.id]||{};
+        if(rm.daily){
+          const v=sc[`${day.date}_${s}_daily`];
+          if(Array.isArray(v)&&v.includes(ttStaff)){
+            hit={kind:'daily',rmName:T('daily-name')};
+            break;
+          }
+        } else {
+          const rmName=lang==='zh'?rm.nameZh:rm.name;
+          if(sc[`${day.date}_${s}_host`]===ttStaff){ hit={kind:'host',rmName}; break; }
+          if(sc[`${day.date}_${s}_coord`]===ttStaff){ hit={kind:'coord',rmName}; break; }
+        }
+      }
+      if(hit){
+        cellMap[`${day.date}_${s}`]=hit;
+        totSlots++;
+      }
+    }
+  });
+  let h='<colgroup><col style="width:100px">';
+  days.forEach(()=>h+='<col>');
+  h+='</colgroup><thead><tr><th class="tfix">Time</th>';
+  days.forEach(d=>{
+    const lbl=lang==='zh'?d.zh:d.en; const parts=lbl.split(' ');
+    h+=`<th style="${d.we?'color:#e67e22':''}">${parts[0]}<br><span style="font-weight:400;color:#bbb">${parts[1]}</span></th>`;
+  });
+  h+='</tr></thead><tbody>';
+  for(let s=0;s<SLOTS_PER_DAY;s++){
+    const isHour=(s%2)===0;
+    const halfEnd=!isHour;
+    const bandCls=Math.floor(s/2)%2===1?' hour-band':'';
+    const rowCls=bandCls+(halfEnd?' half-end':'');
+    const tcCls=isHour?'tc':'tc half';
+    const timeStr=isHour?(pad(s/2)+':00'):(pad((s-1)/2)+':30');
+    h+=`<tr class="${rowCls}"><td class="${tcCls}">${timeStr}</td>`;
+    days.forEach(d=>{
+      const tdCls=d.we?'we-bg':'';
+      const hit=cellMap[`${d.date}_${s}`];
+      if(hit){
+        h+=`<td class="${tdCls}"><div class="tt-cell ${hit.kind}"><span>${hit.rmName}</span></div></td>`;
+      } else {
+        h+=`<td class="${tdCls}"><div class="tt-cell empty">·</div></td>`;
+      }
+    });
+    h+='</tr>';
+  }
+  h+='</tbody>';
+  tbl.innerHTML=h;
+  const hrs=totSlots*0.5;
+  sumEl.textContent=T('tt-week-total')+(hrs===0?'0h':_hrFmt(hrs)+'h');
+}
+
+function renderHostView(){
+  const c=document.getElementById('hgrid');
+  if(!days.length){c.innerHTML=`<div style="color:#bbb;padding:1rem">${T('pane-empty')}</div>`;return;}
+  c.innerHTML='';
+  const groups=new Map();
+  staff.forEach(s=>{
+    if(!groups.has(s.name)) groups.set(s.name,[]);
+    groups.get(s.name).push(s);
+  });
+  groups.forEach((entries,name)=>{
+    const head=entries[0];
+    const hc=HC[head.c%10],hl=HL[head.c%10];
+    const segs=[];
+    let H=0;
+    days.forEach((day,dayIdx)=>{
+      rooms.forEach(rm=>{
+        const sc=schedAll[rm.id]||{};
+        const rmName=rm.daily?T('daily-name'):(lang==='zh'?rm.nameZh:rm.name);
+        const collect=(roleKey)=>{
+          let slotsArr=[];
+          for(let s=0;s<SLOTS_PER_DAY;s++){
+            if(roleKey==='daily'){
+              const v=sc[`${day.date}_${s}_daily`];
+              if(Array.isArray(v)&&v.includes(name)) slotsArr.push(s);
+            } else {
+              if(sc[`${day.date}_${s}_${roleKey}`]===name) slotsArr.push(s);
+            }
+          }
+          if(!slotsArr.length) return;
+          let ranges=[],a=slotsArr[0],b=slotsArr[0];
+          for(let i=1;i<slotsArr.length;i++){if(slotsArr[i]===b+1)b=slotsArr[i];else{ranges.push([a,b]);a=slotsArr[i];b=slotsArr[i];}}
+          ranges.push([a,b]);
+          ranges.forEach(([st,en])=>{
+            const len=en-st+1;
+            H+=len;
+            segs.push({dayIdx,st,en,len,roleKey,rmName,day});
+          });
+        };
+        if(rm.daily){ collect('daily'); }
+        else { collect('host'); collect('coord'); }
+      });
+    });
+    segs.sort((a,b)=>a.dayIdx-b.dayIdx||a.st-b.st);
+    let body='';
+    segs.forEach(g=>{
+      const lbl=lang==='zh'?g.day.zh:g.day.en;
+      const hrs=g.len*0.5; const hrStr=Number.isInteger(hrs)?hrs:hrs.toFixed(1);
+      const tagCls=g.roleKey==='host'?'':(g.roleKey==='coord'?'coord':'daily');
+      const tagText=g.roleKey==='host'?T('host-lbl'):(g.roleKey==='coord'?T('coord-lbl'):T('daily-name'));
+      body+=`<div class="hsr"><span class="hdy">${lbl.split(' ')[0]}</span><span class="hrtag ${tagCls}">${tagText}</span><span class="hrm" title="${g.rmName}">${g.rmName}</span><span class="htm">${slotLabel(g.st)}–${slotEndLabel(g.en)} (${hrStr}h)</span></div>`;
+    });
+    const presentRoles=['host','coord'].filter(r=>entries.find(e=>e.role===r));
+    const roleLbl=presentRoles.map(r=>r==='host'?T('host-lbl'):T('coord-lbl')).join(' / ');
+    const totHrs=H*0.5; const totHrStr=Number.isInteger(totHrs)?totHrs:totHrs.toFixed(1);
+    const card=document.createElement('div'); card.className='hcard';
+    card.innerHTML=`
+      <div class="hch" style="background:${hl}">
+        <span class="hdot" style="background:${hc}"></span>
+        <span class="hn" style="color:${hc}">${name}</span>
+        <span class="hr2">${roleLbl}</span>
+        <span class="hst">${totHrStr}h</span>
+      </div>
+      <div class="hsl">${body||`<div style="color:#bbb;font-size:12px;padding:4px 0">${T('no-schedule')}</div>`}</div>
+      <div class="hft"><span>${T('subtotal')}</span><span>${totHrStr}h</span></div>`;
+    c.appendChild(card);
+  });
+}
+
+// ═══════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════
+function renderSettings(){
+  const c=document.getElementById('smgr'); c.innerHTML='';
+  staff.forEach((s,i)=>{
+    const hc=HC[s.c%10];
+    const row=document.createElement('div'); row.className='strow';
+    row.innerHTML=`
+      <span class="cdot" style="background:${hc}" onclick="cycleColor(${i})" title="Change color"></span>
+      <input class="sinp" style="width:120px" value="${s.name}" onchange="renameStaff(${i},this.value)">
+      <select class="sinp" style="width:100px;padding:3px 6px" onchange="changeRole(${i},this.value)">
+        <option value="host" ${s.role==='host'?'selected':''}>${T('host-lbl')}</option>
+        <option value="coord" ${s.role==='coord'?'selected':''}>${T('coord-lbl')}</option>
+      </select>
+      <button class="del" onclick="rmStaff(${i})">×</button>`;
+    c.appendChild(row);
+  });
+  if(staff.length<10){
+    const add=document.createElement('div'); add.style.cssText='display:flex;gap:7px;margin-top:8px';
+    add.innerHTML=`
+      <input class="sinp" id="ns" placeholder="${T('staff-ph')}" style="width:120px">
+      <select class="sinp" id="nr" style="width:100px;padding:3px 6px">
+        <option value="host">${T('host-lbl')}</option>
+        <option value="coord">${T('coord-lbl')}</option>
+      </select>
+      <button class="btn btn-sm btn-blue" onclick="addStaff()">${T('add-staff')}</button>`;
+    c.appendChild(add);
+  }
+}
+function cycleColor(i){staff[i].c=(staff[i].c+1)%10;renderAll();autosave();}
+function renameStaff(i,v){
+  const t=(v||'').trim();
+  const old=staff[i].name, r=staff[i].role;
+  if(!t||t===old){ renderAll(); return; }
+  if(staff.some((s,j)=>j!==i&&s.name===t&&s.role===r)){ renderAll(); return; }
+  staff[i].name=t;
+  Object.values(schedAll).forEach(sc=>{
+    Object.keys(sc).forEach(k=>{
+      const v=sc[k];
+      if(Array.isArray(v)){
+        let changed=false;
+        const nv=v.map(n=>{if(n===old){changed=true;return t;}return n;});
+        if(changed) sc[k]=nv;
+      } else if(k.endsWith('_'+r)&&v===old){
+        sc[k]=t;
+      }
+    });
+  });
+  renderAll(); autosave();
+}
+function changeRole(i,v){
+  const old=staff[i].role, n=staff[i].name;
+  if(v===old){ renderAll(); return; }
+  if(staff.some((s,j)=>j!==i&&s.name===n&&s.role===v)){ renderAll(); return; }
+  staff[i].role=v;
+  Object.values(schedAll).forEach(sc=>{
+    Object.keys(sc).forEach(k=>{
+      if(k.endsWith('_'+old)&&sc[k]===n) delete sc[k];
+    });
+  });
+  renderAll(); autosave();
+}
+function addStaff(){
+  const n=(document.getElementById('ns').value||'').trim(), r=document.getElementById('nr').value;
+  if(!n||staff.find(s=>s.name===n&&s.role===r)||staff.length>=10) return;
+  staff.push({name:n,role:r,c:staff.length%10});
+  document.getElementById('ns').value=''; renderAll(); autosave();
+}
+function rmStaff(i){
+  const n=staff[i].name, r=staff[i].role;
+  staff.splice(i,1);
+  Object.values(schedAll).forEach(sc=>{
+    Object.keys(sc).forEach(k=>{
+      const v=sc[k];
+      if(Array.isArray(v)){
+        const filt=v.filter(x=>x!==n);
+        if(filt.length===0) delete sc[k];
+        else if(filt.length!==v.length) sc[k]=filt;
+      } else if(k.endsWith('_'+r)&&v===n){
+        delete sc[k];
+      }
+    });
+  });
+  renderAll(); autosave();
+}
+
+// ═══════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════
+function showTab(tab){
+  ['grid','host','time','settings'].forEach(t=>
+    document.getElementById('pane-'+t).style.display=t===tab?'':'none'
+  );
+  document.querySelectorAll('.tab').forEach((el,i)=>
+    el.classList.toggle('on',['grid','host','time','settings'][i]===tab)
+  );
+  if(tab==='host') renderHostView();
+  if(tab==='time') renderTimeTable();
+  if(tab==='settings') renderSettings();
+}
+
+// ═══════════════════════════════════════
+// PRINT
+// ═══════════════════════════════════════
+function printSchedule(){
+  window.print();
+}
+
+// ═══════════════════════════════════════
+// SAVE / LOAD / CLEAR
+// ═══════════════════════════════════════
+function _buildPayload(){
+  return {schedAll,staff,days,rooms,currentRoom,_v:2,_t:Date.now()};
+}
+function _migrateHourToSlot(sc){
+  const out={};
+  Object.keys(sc).forEach(k=>{
+    const parts=k.split('_');
+    if(parts.length<3) return;
+    const date=parts[0], hr=parseInt(parts[1]), tail=parts.slice(2).join('_');
+    if(isNaN(hr)) return;
+    const newKey=`${date}_${hr*2}_${tail}`;
+    out[newKey]=sc[k];
+  });
+  return out;
+}
+function _applyStore(o){
+  if(!o||typeof o!=='object') return false;
+  const needMigrate=!o._v||o._v<2;
+  if(o.schedAll){
+    schedAll={r1:o.schedAll.r1||{},r2:o.schedAll.r2||{},r3:o.schedAll.r3||{},daily:o.schedAll.daily||{}};
+  } else if(o.sched){
+    schedAll={r1:o.sched,r2:{},r3:{},daily:{}};
+  }
+  if(needMigrate){
+    Object.keys(schedAll).forEach(k=>{ schedAll[k]=_migrateHourToSlot(schedAll[k]); });
+  }
+  if(Array.isArray(o.staff)) staff=o.staff;
+  if(Array.isArray(o.days)) days=o.days;
+  if(Array.isArray(o.rooms)&&o.rooms.length>=3){
+    rooms=o.rooms.slice(0,4);
+    if(!rooms.find(r=>r.daily)) rooms.push({id:'daily',name:'Daily Work',nameZh:'日常工作',daily:true});
+  }
+  currentRoom=o.currentRoom&&schedAll[o.currentRoom]?o.currentRoom:'r1';
+  sched=schedAll[currentRoom];
+  return true;
+}
+function _onlineReady(){
+  return !!(ONLINE_DB.url&&ONLINE_DB.anonKey&&ONLINE_DB.table&&ONLINE_DB.id);
+}
+function _onlineEndpoint(query){
+  return ONLINE_DB.url.replace(/\/$/,'')+'/rest/v1/'+encodeURIComponent(ONLINE_DB.table)+(query||'');
+}
+function _onlineHeaders(extra){
+  return Object.assign({
+    apikey:ONLINE_DB.anonKey,
+    Authorization:'Bearer '+ONLINE_DB.anonKey,
+    'Content-Type':'application/json'
+  },extra||{});
+}
+async function _writeOnline(){
+  if(!_onlineReady()) return false;
+  const res=await fetch(_onlineEndpoint('?on_conflict=id'),{
+    method:'POST',
+    headers:_onlineHeaders({Prefer:'resolution=merge-duplicates'}),
+    body:JSON.stringify({id:ONLINE_DB.id,payload:_buildPayload(),updated_at:new Date().toISOString()})
+  });
+  if(!res.ok) throw new Error(await res.text());
+  return true;
+}
+async function _readOnline(){
+  if(!_onlineReady()) return null;
+  const q='?id=eq.'+encodeURIComponent(ONLINE_DB.id)+'&select=payload&limit=1';
+  const res=await fetch(_onlineEndpoint(q),{headers:_onlineHeaders()});
+  if(!res.ok) throw new Error(await res.text());
+  const rows=await res.json();
+  return rows&&rows[0]?rows[0].payload:null;
+}
+function _writeStore(){
+  try{ localStorage.setItem('sv5',JSON.stringify(_buildPayload())); }catch(e){}
+  _writeOnline().catch(()=>{});
+  _writeFile();
+}
+let _saveT=null;
+function autosave(){
+  clearTimeout(_saveT);
+  _saveT=setTimeout(_writeStore,200);
+}
+function _readStore(){
+  const d=localStorage.getItem('sv5'); if(!d) return false;
+  try{ return _applyStore(JSON.parse(d)); }catch(e){ return false; }
+}
+async function saveLocal(){
+  try{ localStorage.setItem('sv5',JSON.stringify(_buildPayload())); }catch(e){}
+  if(!_onlineReady()){
+    _writeFile();
+    showToast(T('cloud-not-configured'));
+    return;
+  }
+  try{
+    await _writeOnline();
+    _writeFile();
+    showToast(T('cloud-save-ok'));
+  }catch(e){
+    showToast(T('cloud-save-fail'));
+  }
+}
+async function loadLocal(){
+  if(_onlineReady()){
+    try{
+      const obj=await _readOnline();
+      if(!obj){showToast(T('no-data'));return;}
+      if(!_applyStore(obj)){showToast(T('cloud-load-fail'));return;}
+      try{ localStorage.setItem('sv5',JSON.stringify(_buildPayload())); }catch(e){}
+      if(days.length) document.getElementById('week-start').value=days[0].date;
+      renderRoomSwitch(); renderAll(); showToast(T('cloud-load-ok'));
+      return;
+    }catch(e){
+      showToast(T('cloud-load-fail'));
+      return;
+    }
+  }
+  if(!_readStore()){showToast(T('no-data'));return;}
+  if(days.length) document.getElementById('week-start').value=days[0].date;
+  renderRoomSwitch(); renderAll(); showToast(T('load-ok'));
+}
+
+// ═══════════════════════════════════════
+// FILE SYNC (File System Access API)
+// ═══════════════════════════════════════
+let fileHandle=null;
+let _fileWriteT=null;
+const FS_DB='sched_fs', FS_KEY='handle';
+
+function _idb(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(FS_DB,1);
+    r.onupgradeneeded=()=>r.result.createObjectStore('h');
+    r.onsuccess=()=>res(r.result);
+    r.onerror=()=>rej(r.error);
+  });
+}
+async function _idbGet(){
+  try{
+    const db=await _idb();
+    return await new Promise((res,rej)=>{
+      const tx=db.transaction('h','readonly').objectStore('h').get(FS_KEY);
+      tx.onsuccess=()=>res(tx.result||null);
+      tx.onerror=()=>rej(tx.error);
+    });
+  }catch(e){ return null; }
+}
+async function _idbPut(v){
+  try{
+    const db=await _idb();
+    return await new Promise((res,rej)=>{
+      const st=db.transaction('h','readwrite').objectStore('h');
+      const tx=v==null?st.delete(FS_KEY):st.put(v,FS_KEY);
+      tx.onsuccess=()=>res(true);
+      tx.onerror=()=>rej(tx.error);
+    });
+  }catch(e){ return false; }
+}
+async function _verifyPerm(handle,write){
+  if(!handle||!handle.queryPermission) return false;
+  const opts={mode:write?'readwrite':'read'};
+  let p=await handle.queryPermission(opts);
+  if(p==='granted') return true;
+  p=await handle.requestPermission(opts);
+  return p==='granted';
+}
+function _fsSupported(){return 'showSaveFilePicker' in window;}
+function _setFileStatus(handle,err){
+  const el=document.getElementById('file-status');
+  const btn=document.getElementById('el-file-connect');
+  if(!el||!btn) return;
+  if(err){
+    el.className='file-status on err';
+    el.textContent='⚠ '+err;
+    el.title=err;
+    return;
+  }
+  if(handle){
+    el.className='file-status on';
+    el.textContent='● '+T('fs-connected')+handle.name;
+    el.title=handle.name;
+    btn.textContent=T('fs-disconnect');
+    btn.setAttribute('onclick','disconnectFile()');
+  } else {
+    el.className='file-status';
+    el.textContent='';
+    el.title='';
+    btn.textContent=T('fs-connect');
+    btn.setAttribute('onclick','connectFile()');
+  }
+}
+async function connectFile(){
+  if(!_fsSupported()){ alert(T('fs-unsupported')); return; }
+  try{
+    const h=await window.showSaveFilePicker({
+      suggestedName:'schedule.json',
+      types:[{description:'JSON',accept:{'application/json':['.json']}}]
+    });
+    fileHandle=h;
+    await _idbPut(h);
+    await _writeFile();
+    _setFileStatus(h);
+    showToast(T('save-ok'));
+  }catch(e){
+    if(e&&e.name==='AbortError') return;
+    _setFileStatus(null,T('fs-perm-denied'));
+  }
+}
+async function disconnectFile(){
+  if(!confirm(T('fs-disconnect-confirm'))) return;
+  fileHandle=null;
+  await _idbPut(null);
+  _setFileStatus(null);
+}
+async function loadFromFile(){
+  if(!_fsSupported()){ alert(T('fs-unsupported')); return; }
+  try{
+    const [h]=await window.showOpenFilePicker({
+      types:[{description:'JSON',accept:{'application/json':['.json']}}]
+    });
+    const ok=await _verifyPerm(h,false); if(!ok){ _setFileStatus(fileHandle,T('fs-perm-denied')); return; }
+    const file=await h.getFile();
+    const text=await file.text();
+    const obj=JSON.parse(text);
+    if(!confirm(T('fs-confirm-load'))) return;
+    if(!_applyStore(obj)){ showToast(T('fs-load-fail')); return; }
+    if(days.length) document.getElementById('week-start').value=days[0].date;
+    fileHandle=h;
+    await _idbPut(h);
+    _setFileStatus(h);
+    renderRoomSwitch(); renderAll();
+    _writeStore();
+    showToast(T('fs-load-ok'));
+  }catch(e){
+    if(e&&e.name==='AbortError') return;
+    showToast(T('fs-load-fail'));
+  }
+}
+async function _writeFile(){
+  if(!fileHandle) return;
+  clearTimeout(_fileWriteT);
+  _fileWriteT=setTimeout(async()=>{
+    try{
+      const ok=await _verifyPerm(fileHandle,true);
+      if(!ok){ _setFileStatus(fileHandle,T('fs-perm-denied')); return; }
+      const w=await fileHandle.createWritable();
+      await w.write(JSON.stringify(_buildPayload(),null,2));
+      await w.close();
+      _setFileStatus(fileHandle);
+    }catch(e){
+      _setFileStatus(fileHandle,T('fs-write-fail'));
+    }
+  },300);
+}
+async function _restoreFileHandle(){
+  if(!_fsSupported()) return;
+  const h=await _idbGet(); if(!h) return;
+  try{
+    const p=await h.queryPermission({mode:'readwrite'});
+    if(p==='granted'){
+      fileHandle=h; _setFileStatus(h);
+    } else {
+      fileHandle=h; _setFileStatus(h);
+    }
+  }catch(e){}
+}
+function clearSched(){schedAll[currentRoom]={};sched=schedAll[currentRoom];renderAll();autosave();showToast(T('clear-ok'));}
+
+// ═══════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════
+function showToast(m){
+  const el=document.getElementById('toast');
+  el.textContent=m; el.style.display='block';
+  clearTimeout(el._t); el._t=setTimeout(()=>el.style.display='none',2500);
+}
+
+// ═══════════════════════════════════════
+// RENDER ALL
+// ═══════════════════════════════════════
+function renderAll(){
+  renderGrid(); rebuildDrops(); renderSettings();
+}
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+(async function init(){
+  let restored=false;
+  if(_onlineReady()){
+    try{
+      const obj=await _readOnline();
+      restored=!!obj&&_applyStore(obj);
+      if(restored){ try{ localStorage.setItem('sv5',JSON.stringify(_buildPayload())); }catch(e){} }
+    }catch(e){}
+  }
+  if(!restored) restored=_readStore();
+  if(restored && days.length){
+    document.getElementById('week-start').value=days[0].date;
+  } else {
+    const today=new Date(), dow=today.getDay();
+    const mon=new Date(today); mon.setDate(today.getDate()-(dow===0?6:dow-1));
+    document.getElementById('week-start').value=gds(mon);
+  }
+  applyLang();
+  renderRoomSwitch();
+  if(restored && days.length){
+    renderAll();
+  } else {
+    rebuildDays();
+  }
+  await _restoreFileHandle();
+})();
+</script>
+</body>
+</html>
