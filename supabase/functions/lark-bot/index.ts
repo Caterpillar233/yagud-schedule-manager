@@ -89,11 +89,11 @@ function buildScheduleText(payload: SchedulePayload, staffName: string, nextWeek
   }
 
   if (!items.length) {
-    return `${staffName} ${nextWeek ? "下周" : "本周"}暂无排班。`;
+    return `${staffName}, you have no scheduled shifts ${nextWeek ? "next week" : "this week"}.`;
   }
 
   items.sort((a, b) => a.date.localeCompare(b.date) || a.slot - b.slot || a.room.localeCompare(b.room));
-  const lines = [`${staffName} ${nextWeek ? "下周" : "本周"}排班：`];
+  const lines = [`${staffName}'s schedule ${nextWeek ? "next week" : "this week"}:`];
   let i = 0;
   while (i < items.length) {
     const cur = items[i];
@@ -109,7 +109,7 @@ function buildScheduleText(payload: SchedulePayload, staffName: string, nextWeek
       end = items[j].slot;
       j++;
     }
-    const roleLabel = cur.role === "host" ? "主播" : cur.role === "coord" ? "场控" : "日常工作";
+    const roleLabel = cur.role === "host" ? "Host" : cur.role === "coord" ? "Coordinator" : "Daily Work";
     lines.push(`${cur.date} ${slotLabel(cur.slot)}-${slotEndLabel(end)} ${cur.room} ${roleLabel}`);
     i = j;
   }
@@ -128,11 +128,6 @@ Deno.serve(async (req) => {
   const currentChatId = chatId(body);
   const text = parseText(body).trim();
   if (!openId) return Response.json({ ok: true }, { headers: corsHeaders });
-  if (/^chat\s*id$|^群\s*id$|^chat_id$/i.test(text) && currentChatId) {
-    await sendLarkText("chat_id", currentChatId, `当前群 Chat ID:\n${currentChatId}`);
-    return Response.json({ ok: true }, { headers: corsHeaders });
-  }
-  if (!/排班|schedule|shift|工时/i.test(text)) return Response.json({ ok: true }, { headers: corsHeaders });
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -140,6 +135,16 @@ Deno.serve(async (req) => {
   );
 
   await supabase.from("lark_message_log").insert({ lark_open_id: openId, message_text: text });
+
+  if (/^chat\s*id$|^群\s*id$|^chat_id$/i.test(text) && currentChatId) {
+    await sendLarkText("chat_id", currentChatId, `Current chat ID:\n${currentChatId}`);
+    return Response.json({ ok: true }, { headers: corsHeaders });
+  }
+  if (/^whoami$|^open\s*id$|^my\s*id$/i.test(text)) {
+    await sendLarkText("open_id", openId, `Your Lark Open ID:\n${openId}`);
+    return Response.json({ ok: true }, { headers: corsHeaders });
+  }
+  if (!/排班|schedule|shift|工时/i.test(text)) return Response.json({ ok: true }, { headers: corsHeaders });
 
   const { data: mapping, error: mapError } = await supabase
     .from("lark_user_map")
@@ -149,7 +154,7 @@ Deno.serve(async (req) => {
     .maybeSingle();
 
   if (mapError || !mapping?.staff_name) {
-    await sendLarkText("open_id", openId, `还没有绑定你的 Lark 账号和排班姓名，请联系管理员。\nOpen ID: ${openId}`);
+    await sendLarkText("open_id", openId, `Your Lark account is not linked to a schedule name yet. Please contact an admin.\nOpen ID: ${openId}`);
     return Response.json({ ok: true }, { headers: corsHeaders });
   }
 
@@ -160,7 +165,7 @@ Deno.serve(async (req) => {
     .maybeSingle();
 
   if (scheduleError || !schedule?.payload) {
-    await sendLarkText("open_id", openId, "暂时没有读取到排班数据，请稍后再试。");
+    await sendLarkText("open_id", openId, "I couldn't read the schedule data right now. Please try again later.");
     return Response.json({ ok: true }, { headers: corsHeaders });
   }
 
