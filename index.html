@@ -284,6 +284,7 @@ const LANG={
     'cloud-not-configured':'Online database is not configured yet',
     'cloud-save-ok':'Saved online',
     'cloud-load-ok':'Loaded from online database',
+    'cloud-migrate-ok':'Local schedule migrated online',
     'cloud-save-fail':'Online save failed',
     'cloud-load-fail':'Online load failed',
     'no-brush-toast':'Please select a brush first',
@@ -329,6 +330,7 @@ const LANG={
     'cloud-not-configured':'尚未配置线上数据库',
     'cloud-save-ok':'已保存到线上数据库',
     'cloud-load-ok':'已从线上数据库读取',
+    'cloud-migrate-ok':'本地历史排班已同步到线上',
     'cloud-save-fail':'线上保存失败',
     'cloud-load-fail':'线上读取失败',
     'no-brush-toast':'请先选择笔刷',
@@ -1255,6 +1257,7 @@ function renderAll(){
 // ═══════════════════════════════════════
 (async function init(){
   let restored=false;
+  let shouldMigrateLocal=false;
   if(_onlineReady()){
     try{
       const obj=await _readOnline();
@@ -1262,7 +1265,10 @@ function renderAll(){
       if(restored){ try{ localStorage.setItem('sv5',JSON.stringify(_buildPayload())); }catch(e){} }
     }catch(e){}
   }
-  if(!restored) restored=_readStore();
+  if(!restored){
+    restored=_readStore();
+    shouldMigrateLocal=restored&&_onlineReady();
+  }
   if(restored && days.length){
     document.getElementById('week-start').value=days[0].date;
   } else {
@@ -1278,6 +1284,13 @@ function renderAll(){
     rebuildDays();
   }
   await _restoreFileHandle();
+  if(shouldMigrateLocal){
+    setTimeout(()=>{
+      _writeOnline()
+        .then(()=>showToast(T('cloud-migrate-ok')))
+        .catch(()=>showToast(T('cloud-save-fail')));
+    },500);
+  }
 })();
 </script>
 </body>
