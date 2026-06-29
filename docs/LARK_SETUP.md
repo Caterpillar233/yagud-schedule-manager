@@ -58,6 +58,14 @@ Employees can send messages such as:
 查询下周排班
 ```
 
+To get the reminder group chat ID, add the bot to the target group and send:
+
+```text
+chat id
+```
+
+The bot will reply with the current `chat_id`. Put that value in `LARK_REMINDER_CHAT_ID`.
+
 ## Weekly Reminder
 
 Deploy `lark-reminder`, then schedule a weekly HTTP call to:

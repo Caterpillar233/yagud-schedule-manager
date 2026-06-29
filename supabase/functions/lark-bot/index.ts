@@ -61,6 +61,10 @@ function senderOpenId(body: any) {
   return body?.event?.sender?.sender_id?.open_id || "";
 }
 
+function chatId(body: any) {
+  return body?.event?.message?.chat_id || "";
+}
+
 function buildScheduleText(payload: SchedulePayload, staffName: string, nextWeek: boolean) {
   const dates = new Set(weekDates(nextWeek));
   const rooms = payload.rooms || [];
@@ -121,8 +125,13 @@ Deno.serve(async (req) => {
   if (!verifyLarkToken(body)) return new Response("Invalid token", { status: 401, headers: corsHeaders });
 
   const openId = senderOpenId(body);
+  const currentChatId = chatId(body);
   const text = parseText(body).trim();
   if (!openId) return Response.json({ ok: true }, { headers: corsHeaders });
+  if (/^chat\s*id$|^群\s*id$|^chat_id$/i.test(text) && currentChatId) {
+    await sendLarkText("chat_id", currentChatId, `当前群 Chat ID:\n${currentChatId}`);
+    return Response.json({ ok: true }, { headers: corsHeaders });
+  }
   if (!/排班|schedule|shift|工时/i.test(text)) return Response.json({ ok: true }, { headers: corsHeaders });
 
   const supabase = createClient(
