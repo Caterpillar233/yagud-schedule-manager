@@ -61,8 +61,16 @@ function senderOpenId(body: any) {
   return body?.event?.sender?.sender_id?.open_id || "";
 }
 
+function operatorOpenId(body: any) {
+  return body?.event?.operator?.operator_id?.open_id || body?.event?.operator_id?.open_id || "";
+}
+
 function chatId(body: any) {
   return body?.event?.message?.chat_id || "";
+}
+
+function eventKey(body: any) {
+  return body?.event?.event_key || "";
 }
 
 function buildScheduleText(payload: SchedulePayload, staffName: string, nextWeek: boolean) {
@@ -124,9 +132,11 @@ Deno.serve(async (req) => {
   if (body?.challenge) return Response.json({ challenge: body.challenge }, { headers: corsHeaders });
   if (!verifyLarkToken(body)) return new Response("Invalid token", { status: 401, headers: corsHeaders });
 
-  const openId = senderOpenId(body);
+  const key = eventKey(body);
+  const openId = senderOpenId(body) || operatorOpenId(body);
   const currentChatId = chatId(body);
-  const text = parseText(body).trim();
+  const isScheduleMenu = /^schedule_query$|schedule|shift/i.test(key);
+  const text = isScheduleMenu ? "1" : parseText(body).trim();
   if (!openId) return Response.json({ ok: true }, { headers: corsHeaders });
 
   const supabase = createClient(
@@ -134,7 +144,7 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SERVICE_ROLE_KEY")!,
   );
 
-  await supabase.from("lark_message_log").insert({ lark_open_id: openId, message_text: text });
+  await supabase.from("lark_message_log").insert({ lark_open_id: openId, message_text: key ? `menu:${key}` : text });
 
   if (/^chat\s*id$|^群\s*id$|^chat_id$/i.test(text) && currentChatId) {
     await sendLarkText("chat_id", currentChatId, `Current chat ID:\n${currentChatId}`);

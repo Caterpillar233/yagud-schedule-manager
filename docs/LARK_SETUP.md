@@ -120,9 +120,23 @@ Do not enable encrypted event payloads unless the Edge Function is updated to de
 - `whoami`: reply with the sender's Lark Open ID.
 - `chat id`: reply with the current group chat ID.
 - `list members`: pull the current group member list, store open IDs in Supabase, and reply with a preview.
+- Bot menu click with event key `schedule_query`: reply with the sender's schedule.
 
 The `list members` command requires the bot to be in the group and the Lark permission:
 
 ```text
 im:chat.members:read
 ```
+
+## Bot Menu For One-Click Schedule Query
+
+In Lark Developer Console, add the `Chat bar + menu` scene.
+
+Create a bot menu item:
+
+```text
+Menu name: What's my schedule?
+Event key: schedule_query
+```
+
+When a user clicks this menu item, Lark sends a bot menu event to `lark-bot`; the function treats it the same as the user sending `1` and replies privately with that user's schedule.
