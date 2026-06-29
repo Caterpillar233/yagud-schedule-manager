@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    Deno.env.get("SERVICE_ROLE_KEY")!,
   );
 
   await supabase.from("lark_message_log").insert({ lark_open_id: openId, message_text: text });
