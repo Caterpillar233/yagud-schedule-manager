@@ -1,4 +1,4 @@
-import { sendLarkText } from "../_shared/lark.ts";
+import { sendLarkPost } from "../_shared/lark.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,16 +17,34 @@ Deno.serve(async (req) => {
   const chatId = Deno.env.get("LARK_REMINDER_CHAT_ID");
   if (!chatId) return new Response("Missing LARK_REMINDER_CHAT_ID", { status: 500, headers: corsHeaders });
 
-  const text = [
-    "请大家回复下周 available 时间。",
-    "",
-    "建议格式：",
-    "姓名 + 日期 + 可用时间段",
-    "例如：Vivian 7/6 10:00-14:00, 7/8 12:00-18:00",
-    "",
-    "请直接在本群回复，谢谢。",
-  ].join("\n");
+  let body: any = {};
+  try {
+    body = req.method === "GET" ? {} : await req.json();
+  } catch {
+    body = {};
+  }
+  const isFinal = body.type === "final";
+  const post = {
+    en_us: {
+      title: isFinal
+        ? "Final Call: Next Week Availability Due Today at 5:00 PM"
+        : "Reminder: Please Share Your Availability for Next Week",
+      content: [
+        [{
+          tag: "text",
+          text: isFinal
+            ? "This is the final call to submit your availability for next week."
+            : "Please reply in this group with your availability for next week.",
+        }],
+        [{ tag: "text", text: isFinal ? "Deadline: today at 5:00 PM." : "Deadline: Friday at 5:00 PM.", style: ["bold"] }],
+        [{ tag: "text", text: "Suggested format:" }],
+        [{ tag: "text", text: "Name + date + available time range" }],
+        [{ tag: "text", text: "Example: Vivian 7/6 10:00-14:00, 7/8 12:00-18:00" }],
+        [{ tag: "text", text: "Thank you!" }],
+      ],
+    },
+  };
 
-  await sendLarkText("chat_id", chatId, text);
+  await sendLarkPost("chat_id", chatId, post);
   return Response.json({ ok: true }, { headers: corsHeaders });
 });

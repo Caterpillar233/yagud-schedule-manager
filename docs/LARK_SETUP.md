@@ -81,3 +81,35 @@ Authorization: Bearer <CRON_SECRET>
 ```
 
 Supabase Scheduled Functions or an external scheduler can call this endpoint weekly.
+
+Current production schedule:
+
+- Thursday 9:00 AM Pacific: regular availability reminder.
+- Friday 9:00 AM Pacific: regular availability reminder.
+- Friday 5:00 PM Pacific: final call reminder.
+
+Supabase Cron runs in UTC. The deployed schedules use Pacific daylight time conversion:
+
+- `0 16 * * 4`
+- `0 16 * * 5`
+- `0 0 * * 6`
+
+If the team needs exact 9:00 AM / 5:00 PM Pacific during standard time as well, update the cron expressions when daylight saving time changes or move scheduling to a timezone-aware external scheduler.
+
+## Lark Event Callback
+
+Use HTTP callback mode, not long connection mode, for Supabase Edge Functions.
+
+Callback URL:
+
+```text
+https://gmfggasqezvcisfdckkj.functions.supabase.co/lark-bot
+```
+
+Add the `Receive Message v2.0` event:
+
+```text
+im.message.receive_v1
+```
+
+Do not enable encrypted event payloads unless the Edge Function is updated to decrypt them.

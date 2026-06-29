@@ -25,6 +25,14 @@ export async function getTenantAccessToken() {
 }
 
 export async function sendLarkText(receiveIdType: LarkReceiveIdType, receiveId: string, text: string) {
+  return sendLarkMessage(receiveIdType, receiveId, "text", { text });
+}
+
+export async function sendLarkPost(receiveIdType: LarkReceiveIdType, receiveId: string, post: unknown) {
+  return sendLarkMessage(receiveIdType, receiveId, "post", post);
+}
+
+export async function sendLarkMessage(receiveIdType: LarkReceiveIdType, receiveId: string, msgType: string, content: unknown) {
   const token = await getTenantAccessToken();
   const res = await fetch(`https://open.larksuite.com/open-apis/im/v1/messages?receive_id_type=${receiveIdType}`, {
     method: "POST",
@@ -34,8 +42,8 @@ export async function sendLarkText(receiveIdType: LarkReceiveIdType, receiveId: 
     },
     body: JSON.stringify({
       receive_id: receiveId,
-      msg_type: "text",
-      content: JSON.stringify({ text }),
+      msg_type: msgType,
+      content: JSON.stringify(content),
     }),
   });
   const data = await res.json();
