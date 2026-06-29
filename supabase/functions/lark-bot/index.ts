@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
-import { sendLarkText, verifyLarkToken } from "../_shared/lark.ts";
+import { listLarkChatMembers, sendLarkText, verifyLarkToken } from "../_shared/lark.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -144,7 +144,35 @@ Deno.serve(async (req) => {
     await sendLarkText("open_id", openId, `Your Lark Open ID:\n${openId}`);
     return Response.json({ ok: true }, { headers: corsHeaders });
   }
-  if (!/排班|schedule|shift|工时/i.test(text)) return Response.json({ ok: true }, { headers: corsHeaders });
+  if (/^list\s+members$|^members$/i.test(text) && currentChatId) {
+    try {
+      const members = await listLarkChatMembers(currentChatId);
+      const rows = members
+        .map((m) => ({
+          chat_id: currentChatId,
+          member_open_id: m.member_id || m.open_id || m.user_id || "",
+          member_name: m.name || m.en_name || m.nickname || "",
+          raw: m,
+          last_seen_at: new Date().toISOString(),
+        }))
+        .filter((m) => m.member_open_id);
+      if (rows.length) {
+        await supabase.from("lark_group_members").upsert(rows, { onConflict: "chat_id,member_open_id" });
+      }
+      const preview = rows.slice(0, 30).map((m) => `${m.member_name || "(no name)"}: ${m.member_open_id}`);
+      await sendLarkText(
+        "chat_id",
+        currentChatId,
+        [`Found ${rows.length} members.`, ...preview, rows.length > 30 ? `...and ${rows.length - 30} more.` : ""]
+          .filter(Boolean)
+          .join("\n"),
+      );
+    } catch (e) {
+      await sendLarkText("chat_id", currentChatId, `I couldn't read the group member list. Please check the app permission: im:chat.members:read.`);
+    }
+    return Response.json({ ok: true }, { headers: corsHeaders });
+  }
+  if (!/^1$|what'?s my schedule|schedule|shift/i.test(text)) return Response.json({ ok: true }, { headers: corsHeaders });
 
   const { data: mapping, error: mapError } = await supabase
     .from("lark_user_map")

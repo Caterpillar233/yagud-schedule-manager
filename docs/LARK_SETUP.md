@@ -113,3 +113,16 @@ im.message.receive_v1
 ```
 
 Do not enable encrypted event payloads unless the Edge Function is updated to decrypt them.
+
+## Useful Bot Commands
+
+- `What's my schedule` or `1`: reply with the sender's schedule.
+- `whoami`: reply with the sender's Lark Open ID.
+- `chat id`: reply with the current group chat ID.
+- `list members`: pull the current group member list, store open IDs in Supabase, and reply with a preview.
+
+The `list members` command requires the bot to be in the group and the Lark permission:
+
+```text
+im:chat.members:read
+```

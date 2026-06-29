@@ -14,11 +14,22 @@ create table if not exists public.lark_message_log (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.lark_group_members (
+  chat_id text not null,
+  member_open_id text not null,
+  member_name text,
+  raw jsonb,
+  last_seen_at timestamptz not null default now(),
+  primary key (chat_id, member_open_id)
+);
+
 alter table public.lark_user_map enable row level security;
 alter table public.lark_message_log enable row level security;
+alter table public.lark_group_members enable row level security;
 
 drop policy if exists "service role manages lark user map" on public.lark_user_map;
 drop policy if exists "service role manages lark message log" on public.lark_message_log;
+drop policy if exists "service role manages lark group members" on public.lark_group_members;
 
 create policy "service role manages lark user map"
 on public.lark_user_map
@@ -29,6 +40,13 @@ with check (true);
 
 create policy "service role manages lark message log"
 on public.lark_message_log
+for all
+to service_role
+using (true)
+with check (true);
+
+create policy "service role manages lark group members"
+on public.lark_group_members
 for all
 to service_role
 using (true)

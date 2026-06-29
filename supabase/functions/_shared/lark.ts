@@ -53,6 +53,35 @@ export async function sendLarkMessage(receiveIdType: LarkReceiveIdType, receiveI
   return data;
 }
 
+export async function listLarkChatMembers(chatId: string) {
+  const token = await getTenantAccessToken();
+  const members: any[] = [];
+  let pageToken = "";
+
+  do {
+    const url = new URL(`https://open.larksuite.com/open-apis/im/v1/chats/${chatId}/members`);
+    url.searchParams.set("member_id_type", "open_id");
+    url.searchParams.set("page_size", "100");
+    if (pageToken) url.searchParams.set("page_token", pageToken);
+
+    const res = await fetch(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+    const data = await res.json();
+    if (!res.ok || data.code !== 0) {
+      throw new Error(`Unable to list Lark chat members: ${JSON.stringify(data)}`);
+    }
+    members.push(...(data.data?.items || []));
+    pageToken = data.data?.page_token || "";
+    if (!data.data?.has_more) break;
+  } while (pageToken);
+
+  return members;
+}
+
 export function verifyLarkToken(body: any) {
   const expected = Deno.env.get("LARK_VERIFICATION_TOKEN");
   if (!expected) return true;

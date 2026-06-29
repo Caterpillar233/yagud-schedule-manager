@@ -1,0 +1,3 @@
+-- Production reminder cron jobs were applied directly with runtime secrets.
+-- This placeholder keeps local migration history aligned with the remote project
+-- without committing cron bearer tokens to git.
