@@ -34,5 +34,6 @@ Phase 2 backend scaffolding is in:
 
 - `supabase/functions/lark-bot`: Lark message callback for personal schedule lookup.
 - `supabase/functions/lark-reminder`: weekly availability reminder sender.
+- `supabase/functions/availability-report`: availability summary API.
 - `supabase/migrations/202606300001_lark_integration.sql`: Lark user mapping tables.
 - `docs/LARK_SETUP.md`: setup steps and required secrets.

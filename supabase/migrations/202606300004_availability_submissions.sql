@@ -10,7 +10,9 @@ create table if not exists public.availability_submissions (
 alter table public.availability_submissions enable row level security;
 
 grant insert on public.availability_submissions to anon;
+grant select, insert, update, delete on public.availability_submissions to service_role;
 grant usage, select on sequence public.availability_submissions_id_seq to anon;
+grant usage, select on sequence public.availability_submissions_id_seq to service_role;
 
 drop policy if exists "public can submit availability" on public.availability_submissions;
 drop policy if exists "service role manages availability submissions" on public.availability_submissions;
