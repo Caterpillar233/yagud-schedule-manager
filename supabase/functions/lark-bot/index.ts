@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
-import { listLarkChatMembers, sendLarkText, verifyLarkToken } from "../_shared/lark.ts";
+import { listLarkChatMembers, sendLarkPost, sendLarkText, verifyLarkToken } from "../_shared/lark.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -124,6 +124,25 @@ function buildScheduleText(payload: SchedulePayload, staffName: string, nextWeek
   return lines.join("\n");
 }
 
+function buildSchedulePost(payload: SchedulePayload, staffName: string, nextWeek: boolean) {
+  const text = buildScheduleText(payload, staffName, nextWeek);
+  const lines = text.split("\n");
+  const title = `${staffName}'s Schedule ${nextWeek ? "Next Week" : "This Week"}`;
+  const content = [
+    [{ tag: "text", text: lines[0], style: ["bold"] }],
+    ...lines.slice(1).map((line) => [{ tag: "text", text: line }]),
+  ];
+  if (lines.length === 1) {
+    content.push([{ tag: "text", text: "You can check again after the schedule is updated." }]);
+  }
+  return {
+    en_us: {
+      title,
+      content,
+    },
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: corsHeaders });
@@ -135,7 +154,7 @@ Deno.serve(async (req) => {
   const key = eventKey(body);
   const openId = senderOpenId(body) || operatorOpenId(body);
   const currentChatId = chatId(body);
-  const isScheduleMenu = /^schedule_query$|schedule|shift/i.test(key);
+  const isScheduleMenu = /^my_schedule$|^schedule_query$|schedule|shift/i.test(key);
   const text = isScheduleMenu ? "1" : parseText(body).trim();
   if (!openId) return Response.json({ ok: true }, { headers: corsHeaders });
 
@@ -207,7 +226,7 @@ Deno.serve(async (req) => {
     return Response.json({ ok: true }, { headers: corsHeaders });
   }
 
-  const reply = buildScheduleText(schedule.payload as SchedulePayload, mapping.staff_name, /下周|next/i.test(text));
-  await sendLarkText("open_id", openId, reply);
+  const reply = buildSchedulePost(schedule.payload as SchedulePayload, mapping.staff_name, /next/i.test(text));
+  await sendLarkPost("open_id", openId, reply);
   return Response.json({ ok: true }, { headers: corsHeaders });
 });

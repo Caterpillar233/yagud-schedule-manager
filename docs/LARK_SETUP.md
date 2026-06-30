@@ -128,15 +128,27 @@ The `list members` command requires the bot to be in the group and the Lark perm
 im:chat.members:read
 ```
 
-## Bot Menu For One-Click Schedule Query
+## Bot Menu Configuration
 
-In Lark Developer Console, add the `Chat bar + menu` scene.
+In Lark Developer Console, configure the bot menu under the Bot feature.
 
-Create a bot menu item:
+Create a `My Schedule` menu item:
 
 ```text
-Menu name: What's my schedule?
-Event key: schedule_query
+Menu name: My Schedule
+Action: Push event
+Event key: my_schedule
 ```
 
-When a user clicks this menu item, Lark sends a bot menu event to `lark-bot`; the function treats it the same as the user sending `1` and replies privately with that user's schedule.
+When a user clicks this menu item, Lark sends a bot menu event to `lark-bot`; the function replies privately with that user's schedule as a rich text message.
+
+Create an `Availability` menu item:
+
+```text
+Menu name: Availability
+Action: Jump to link
+Desktop URL: https://caterpillar233.github.io/yagud-schedule-manager/availability.html
+Mobile URL: https://caterpillar233.github.io/yagud-schedule-manager/availability.html
+```
+
+This opens a form where employees can submit next week's available times.

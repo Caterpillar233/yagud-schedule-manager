@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Submit Availability</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f5f6fa;color:#1a1a1a}
+.wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.panel{width:min(560px,100%);background:#fff;border:1px solid #e4e6eb;border-radius:12px;padding:24px;box-shadow:0 12px 32px rgba(0,0,0,.08)}
+h1{font-size:22px;margin:0 0 6px}
+.sub{font-size:13px;color:#667085;margin-bottom:22px;line-height:1.5}
+label{display:block;font-size:13px;font-weight:600;margin:16px 0 7px;color:#344054}
+input,textarea{width:100%;border:1px solid #d0d5dd;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none}
+input:focus,textarea:focus{border-color:#1456f0;box-shadow:0 0 0 3px rgba(20,86,240,.12)}
+textarea{min-height:150px;resize:vertical;line-height:1.45}
+.hint{font-size:12px;color:#98a2b3;margin-top:6px}
+.actions{display:flex;gap:10px;align-items:center;margin-top:22px}
+button{border:0;background:#1456f0;color:#fff;border-radius:8px;padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer}
+button:disabled{opacity:.55;cursor:not-allowed}
+.status{font-size:13px;color:#667085}
+.ok{color:#00875a}.err{color:#c62828}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <main class="panel">
+    <h1>Next Week Availability</h1>
+    <div class="sub">Please submit the times you are available to work next week. The deadline is Friday at 5:00 PM.</div>
+    <form id="form">
+      <label for="name">Name</label>
+      <input id="name" name="name" autocomplete="name" required placeholder="Your schedule name">
+
+      <label for="week">Week start</label>
+      <input id="week" name="week" type="date" required>
+
+      <label for="availability">Available times</label>
+      <textarea id="availability" name="availability" required placeholder="Example: Vivian 7/6 10:00-14:00, 7/8 12:00-18:00"></textarea>
+      <div class="hint">Use any clear format. Include dates and time ranges.</div>
+
+      <div class="actions">
+        <button id="submit" type="submit">Submit</button>
+        <span class="status" id="status"></span>
+      </div>
+    </form>
+  </main>
+</div>
+
+<script>
+const SUPABASE_URL='https://gmfggasqezvcisfdckkj.supabase.co';
+const SUPABASE_KEY='sb_publishable_3Hz6hA8EbjgVTdunQhhgHQ_Is46_d5W';
+
+function pad(n){return String(n).padStart(2,'0');}
+function dateKey(d){return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
+function nextMonday(){
+  const d=new Date();
+  const day=d.getDay();
+  const add=(day===0?1:8-day);
+  d.setDate(d.getDate()+add);
+  return dateKey(d);
+}
+function param(name){return new URLSearchParams(location.search).get(name)||'';}
+
+document.getElementById('week').value=param('week_start')||nextMonday();
+if(param('name')) document.getElementById('name').value=param('name');
+
+document.getElementById('form').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const btn=document.getElementById('submit');
+  const status=document.getElementById('status');
+  btn.disabled=true;
+  status.className='status';
+  status.textContent='Submitting...';
+  const body={
+    staff_name:document.getElementById('name').value.trim(),
+    lark_open_id:param('open_id')||null,
+    week_start:document.getElementById('week').value,
+    availability_text:document.getElementById('availability').value.trim()
+  };
+  try{
+    const res=await fetch(`${SUPABASE_URL}/rest/v1/availability_submissions`,{
+      method:'POST',
+      headers:{
+        apikey:SUPABASE_KEY,
+        Authorization:`Bearer ${SUPABASE_KEY}`,
+        'Content-Type':'application/json',
+        Prefer:'return=minimal'
+      },
+      body:JSON.stringify(body)
+    });
+    if(!res.ok) throw new Error(await res.text());
+    status.className='status ok';
+    status.textContent='Submitted. Thank you!';
+    document.getElementById('availability').value='';
+  }catch(err){
+    status.className='status err';
+    status.textContent='Submit failed. Please try again.';
+  }finally{
+    btn.disabled=false;
+  }
+});
+</script>
+</body>
+</html>
