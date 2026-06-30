@@ -51,7 +51,9 @@ function parseText(body: any) {
   const raw = body?.event?.message?.content;
   if (!raw) return "";
   try {
-    return JSON.parse(raw).text || "";
+    const content = JSON.parse(raw);
+    const text = content.text || "";
+    return text.replace(/@\S+\s*/g, "").trim();
   } catch {
     return String(raw);
   }
@@ -71,6 +73,10 @@ function chatId(body: any) {
 
 function eventKey(body: any) {
   return body?.event?.event_key || "";
+}
+
+function hasCommand(text: string, command: RegExp) {
+  return command.test(text.replace(/\s+/g, " ").trim());
 }
 
 function buildScheduleText(payload: SchedulePayload, staffName: string, nextWeek: boolean) {
@@ -160,20 +166,20 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SERVICE_ROLE_KEY")!,
+    Deno.env.get("SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  await supabase.from("lark_message_log").insert({ lark_open_id: openId, message_text: key ? `menu:${key}` : text });
+  const logResult = await supabase.from("lark_message_log").insert({ lark_open_id: openId, message_text: key ? `menu:${key}` : text });
 
-  if (/^chat\s*id$|^群\s*id$|^chat_id$/i.test(text) && currentChatId) {
+  if (hasCommand(text, /(?:^|\s)(chat\s*id|chat_id|群\s*id)(?:\s|$)/i) && currentChatId) {
     await sendLarkText("chat_id", currentChatId, `Current chat ID:\n${currentChatId}`);
     return Response.json({ ok: true }, { headers: corsHeaders });
   }
-  if (/^whoami$|^open\s*id$|^my\s*id$/i.test(text)) {
+  if (hasCommand(text, /(?:^|\s)(whoami|open\s*id|my\s*id)(?:\s|$)/i)) {
     await sendLarkText("open_id", openId, `Your Lark Open ID:\n${openId}`);
     return Response.json({ ok: true }, { headers: corsHeaders });
   }
-  if (/^list\s+members$|^members$/i.test(text) && currentChatId) {
+  if (hasCommand(text, /(?:^|\s)(list\s+members|members)(?:\s|$)/i) && currentChatId) {
     try {
       const members = await listLarkChatMembers(currentChatId);
       const rows = members
@@ -197,11 +203,16 @@ Deno.serve(async (req) => {
           .join("\n"),
       );
     } catch (e) {
-      await sendLarkText("chat_id", currentChatId, `I couldn't read the group member list. Please check the app permission: im:chat.members:read.`);
+      await sendLarkText("chat_id", currentChatId, `I couldn't read the group member list. Please check the app permission: im:chat.members:read.\n${String(e).slice(0, 500)}`);
     }
     return Response.json({ ok: true }, { headers: corsHeaders });
   }
-  if (!/^1$|what'?s my schedule|schedule|shift/i.test(text)) return Response.json({ ok: true }, { headers: corsHeaders });
+  if (!/^1$|what'?s my schedule|schedule|shift/i.test(text)) {
+    if (logResult.error) {
+      console.error("lark_message_log insert failed", logResult.error);
+    }
+    return Response.json({ ok: true }, { headers: corsHeaders });
+  }
 
   const { data: mapping, error: mapError } = await supabase
     .from("lark_user_map")
