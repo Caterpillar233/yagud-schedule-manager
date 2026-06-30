@@ -24,6 +24,23 @@ export async function getTenantAccessToken() {
   return data.tenant_access_token;
 }
 
+export async function getAppAccessToken() {
+  const appId = Deno.env.get("LARK_APP_ID");
+  const appSecret = Deno.env.get("LARK_APP_SECRET");
+  if (!appId || !appSecret) throw new Error("Missing LARK_APP_ID or LARK_APP_SECRET");
+
+  const res = await fetch("https://open.larksuite.com/open-apis/auth/v3/app_access_token/internal", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ app_id: appId, app_secret: appSecret }),
+  });
+  const data = await res.json();
+  if (!res.ok || data.code !== 0 || !data.app_access_token) {
+    throw new Error(`Unable to get Lark app token: ${JSON.stringify(data)}`);
+  }
+  return data.app_access_token;
+}
+
 export async function sendLarkText(receiveIdType: LarkReceiveIdType, receiveId: string, text: string) {
   return sendLarkMessage(receiveIdType, receiveId, "text", { text });
 }
