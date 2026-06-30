@@ -142,6 +142,14 @@ Event key: my_schedule
 
 When a user clicks this menu item, Lark sends a bot menu event to `lark-bot`; the function replies privately with that user's schedule as a rich text message.
 
+For a web viewer link, use:
+
+```text
+https://caterpillar233.github.io/yagud-schedule-manager/?viewer=1&open_id=<LARK_OPEN_ID>
+```
+
+Bot menu jump links are static, so they cannot automatically append the clicker's `open_id`. A fully automatic one-click web viewer for every user requires a Lark Web App identity flow with OAuth/JSSDK. For testing, use a per-user link such as Andi's viewer URL.
+
 Create an `Availability` menu item:
 
 ```text

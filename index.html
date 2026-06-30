@@ -9,6 +9,7 @@
 input,select{-webkit-user-select:auto;user-select:auto}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f6fa;color:#1a1a1a;font-size:14px}
 body.auth-lock .topbar,body.auth-lock .app{display:none}
+body.viewer-mode .admin-only{display:none!important}
 .topbar{background:#fff;border-bottom:1px solid #e8e8e8;padding:0 20px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;gap:8px}
 .tl{display:flex;align-items:center;gap:10px;flex-shrink:0}
 .back{font-size:13px;color:#999;text-decoration:none}.back:hover{color:#1456f0}
@@ -166,20 +167,20 @@ body:not(.auth-lock) .auth-panel{display:none}
     <a class="back" href="index.html" id="el-back">← Back</a>
     <span class="ttl" id="el-title">Schedule Manager</span>
     <span class="badge" id="el-badge">Admin</span>
-    <div class="room-switch no-print" id="room-switch"></div>
+    <div class="room-switch no-print admin-only" id="room-switch"></div>
   </div>
   <div class="tr">
-    <span id="file-status" class="file-status no-print" title=""></span>
-    <button class="btn btn-sm no-print" onclick="connectFile()" id="el-file-connect">📁 Sync to file</button>
-    <button class="btn btn-sm no-print" onclick="loadFromFile()" id="el-file-load">Load from file</button>
+    <span id="file-status" class="file-status no-print admin-only" title=""></span>
+    <button class="btn btn-sm no-print admin-only" onclick="connectFile()" id="el-file-connect">📁 Sync to file</button>
+    <button class="btn btn-sm no-print admin-only" onclick="loadFromFile()" id="el-file-load">Load from file</button>
     <button class="lang-btn" id="lang-btn" onclick="toggleLang()">中文</button>
-    <button class="btn btn-sm no-print" onclick="logout()" id="el-logout">Logout</button>
-    <button class="btn btn-sm btn-purple no-print" onclick="printSchedule()" id="el-print">🖨 Print / Export</button>
+    <button class="btn btn-sm no-print admin-only" onclick="logout()" id="el-logout">Logout</button>
+    <button class="btn btn-sm btn-purple no-print admin-only" onclick="printSchedule()" id="el-print">🖨 Print / Export</button>
   </div>
 </div>
 
 <div class="app">
-<div class="toolbar no-print">
+<div class="toolbar no-print admin-only">
   <div style="display:flex;align-items:center;gap:7px">
     <span class="tlbl" id="el-week">Week start:</span>
     <input type="date" id="week-start" onchange="rebuildDays()" style="width:148px">
@@ -208,7 +209,7 @@ body:not(.auth-lock) .auth-panel{display:none}
   </div>
 </div>
 
-<div class="stats no-print">
+<div class="stats no-print admin-only">
   <div class="stat"><div class="sn" id="s0">0</div><div class="sl" id="el-s0">Slots scheduled</div></div>
   <div class="stat"><div class="sn" id="s1">0h</div><div class="sl" id="el-s1">Total hours</div></div>
   <div class="stat"><div class="sn" id="s3">0%</div><div class="sl" id="el-s3">24h coverage</div></div>
@@ -217,8 +218,8 @@ body:not(.auth-lock) .auth-panel{display:none}
 <div class="tabs no-print">
   <div class="tab on" onclick="showTab('grid')" id="el-tab0">Schedule Grid</div>
   <div class="tab" onclick="showTab('host')" id="el-tab1">Staff View</div>
-  <div class="tab" onclick="showTab('time')" id="el-tab-time">Time Table</div>
-  <div class="tab" onclick="showTab('settings')" id="el-tab3">Settings</div>
+  <div class="tab admin-only" onclick="showTab('time')" id="el-tab-time">Time Table</div>
+  <div class="tab admin-only" onclick="showTab('settings')" id="el-tab3">Settings</div>
 </div>
 
 <!-- GRID -->
@@ -281,6 +282,9 @@ let brush='', brushRole='';
 let dragging=false, dragMode='fill';
 let _dragWarned=false;
 let ttStaff='';
+let viewerMode=false;
+let viewerStaff='';
+const VIEWER_DATA_URL='https://gmfggasqezvcisfdckkj.functions.supabase.co/viewer-data';
 const ONLINE_DB={
   provider:'supabase',
   url:'https://gmfggasqezvcisfdckkj.supabase.co',
@@ -450,6 +454,31 @@ function toggleLang(){
   document.getElementById('lang-btn').textContent=lang==='en'?'中文':'EN';
   applyLang(); renderRoomSwitch(); renderAll();
 }
+function _params(){return new URLSearchParams(location.search);}
+function _isViewerUrl(){return _params().get('viewer')==='1'||_params().has('open_id')||_params().has('staff');}
+function viewerApplies(name){return viewerMode&&viewerStaff&&name===viewerStaff;}
+function slotHasViewer(date,slot){
+  if(!viewerMode||!viewerStaff) return true;
+  for(const rm of rooms){
+    const sc=schedAll[rm.id]||{};
+    if(rm.daily){
+      const v=sc[`${date}_${slot}_daily`];
+      if(Array.isArray(v)&&v.includes(viewerStaff)) return true;
+    }else if(sc[`${date}_${slot}_host`]===viewerStaff||sc[`${date}_${slot}_coord`]===viewerStaff){
+      return true;
+    }
+  }
+  return false;
+}
+function applyViewerChrome(){
+  if(!viewerMode) return;
+  document.body.classList.add('viewer-mode');
+  document.getElementById('el-badge').textContent=viewerStaff||'Viewer';
+  document.getElementById('el-title').textContent=viewerStaff?`${viewerStaff}'s Schedule`:'Schedule Viewer';
+  currentRoom='r1';
+  sched=schedAll[currentRoom]||{};
+  ['time','settings'].forEach(t=>{const p=document.getElementById('pane-'+t); if(p) p.style.display='none';});
+}
 
 // ═══════════════════════════════════════
 // UTILS
@@ -598,6 +627,10 @@ function renderGrid(){
     h+=`<tr class="${rowCls}"><td class="${tcCls}">${timeStr}</td>`;
     days.forEach(d=>{
       const tdCls=d.we?'we-bg':'';
+      if(viewerMode&&!slotHasViewer(d.date,s)){
+        h+=`<td class="${tdCls}"><div class="split"><div class="sl2 empty"></div><div class="sl2 empty"></div></div></td>`;
+        return;
+      }
       if(daily){
         const dk=`${d.date}_${s}_daily`;
         const arr=getDailyArr(dk);
@@ -609,19 +642,22 @@ function renderGrid(){
       const hn=sched[hk]||'', cn=sched[ck]||'';
       const hi=staff.findIndex(x=>x.name===hn&&x.role==='host');
       const ci=staff.findIndex(x=>x.name===cn&&x.role==='coord');
+      const hName=viewerMode&&!viewerApplies(hn)&&viewerApplies(cn)?hn:hn;
+      const cName=viewerMode&&!viewerApplies(cn)&&viewerApplies(hn)?cn:cn;
       const hSlot=hi>=0
-        ?`<div class="sl2 hs" data-k="${hk}" data-r="host" style="background:${HL[staff[hi].c%10]};color:${HC[staff[hi].c%10]}"><span class="sln">${hn}</span></div>`
-        :`<div class="sl2 hs empty" data-k="${hk}" data-r="host">+</div>`;
+        ?`<div class="sl2 hs" data-k="${hk}" data-r="host" style="background:${HL[staff[hi].c%10]};color:${HC[staff[hi].c%10]}"><span class="sln">${hName}</span></div>`
+        :`<div class="sl2 hs empty" data-k="${hk}" data-r="host">${viewerMode?'':'+'}</div>`;
       const cSlot=ci>=0
-        ?`<div class="sl2" data-k="${ck}" data-r="coord" style="background:${HL[staff[ci].c%10]};color:${HC[staff[ci].c%10]}"><span class="sln">${cn}</span></div>`
-        :`<div class="sl2 empty" data-k="${ck}" data-r="coord">+</div>`;
+        ?`<div class="sl2" data-k="${ck}" data-r="coord" style="background:${HL[staff[ci].c%10]};color:${HC[staff[ci].c%10]}"><span class="sln">${cName}</span></div>`
+        :`<div class="sl2 empty" data-k="${ck}" data-r="coord">${viewerMode?'':'+'}</div>`;
       h+=`<td class="${tdCls}"><div class="split">${hSlot}${cSlot}</div></td>`;
     });
     h+='</tr>';
   }
   h+='</tbody>';
   tbl.innerHTML=h;
-  bindDrag(); updateStats();
+  if(!viewerMode) bindDrag();
+  updateStats();
 }
 
 function bindDrag(){
@@ -870,6 +906,7 @@ function renderHostView(){
     groups.get(s.name).push(s);
   });
   groups.forEach((entries,name)=>{
+    if(viewerMode&&name!==viewerStaff) return;
     const head=entries[0];
     const hc=HC[head.c%10],hl=HL[head.c%10];
     const segs=[];
@@ -1019,6 +1056,7 @@ function rmStaff(i){
 // TABS
 // ═══════════════════════════════════════
 function showTab(tab){
+  if(viewerMode&&tab!=='grid'&&tab!=='host') tab='grid';
   ['grid','host','time','settings'].forEach(t=>
     document.getElementById('pane-'+t).style.display=t===tab?'':'none'
   );
@@ -1318,6 +1356,19 @@ function renderAll(){
   renderGrid(); rebuildDrops(); renderSettings();
 }
 
+async function loadViewerData(){
+  const p=_params();
+  const qs=new URLSearchParams();
+  if(p.get('open_id')) qs.set('open_id',p.get('open_id'));
+  if(p.get('staff')) qs.set('staff',p.get('staff'));
+  const res=await fetch(`${VIEWER_DATA_URL}?${qs.toString()}`);
+  if(!res.ok) throw new Error('viewer data unavailable');
+  const data=await res.json();
+  viewerStaff=data.staffName;
+  _applyStore(data.payload);
+  return true;
+}
+
 // ═══════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════
@@ -1326,14 +1377,18 @@ async function startApp(){
   appStarted=true;
   let restored=false;
   let shouldMigrateLocal=false;
-  if(_onlineReady()){
+  viewerMode=_isViewerUrl();
+  if(viewerMode){
+    try{restored=await loadViewerData();}catch(e){showToast('Unable to load your schedule');}
+  }
+  if(!viewerMode&&_onlineReady()){
     try{
       const obj=await _readOnline();
       restored=!!obj&&_applyStore(obj);
       if(restored){ try{ localStorage.setItem('sv5',JSON.stringify(_buildPayload())); }catch(e){} }
     }catch(e){}
   }
-  if(!restored){
+  if(!viewerMode&&!restored){
     restored=_readStore();
     shouldMigrateLocal=restored&&_onlineReady();
   }
@@ -1345,6 +1400,7 @@ async function startApp(){
     document.getElementById('week-start').value=gds(mon);
   }
   applyLang();
+  applyViewerChrome();
   renderRoomSwitch();
   if(restored && days.length){
     renderAll();
@@ -1361,7 +1417,10 @@ async function startApp(){
   }
 }
 (function init(){
-  if(_isAuthed()){
+  if(_isViewerUrl()){
+    document.body.classList.remove('auth-lock');
+    startApp();
+  } else if(_isAuthed()){
     document.body.classList.remove('auth-lock');
     startApp();
   } else {
