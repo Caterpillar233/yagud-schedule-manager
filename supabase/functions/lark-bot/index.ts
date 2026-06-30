@@ -79,7 +79,32 @@ function hasCommand(text: string, command: RegExp) {
   return command.test(text.replace(/\s+/g, " ").trim());
 }
 
-function buildScheduleText(payload: SchedulePayload, staffName: string, nextWeek: boolean) {
+type ShiftSegment = {
+  date: string;
+  slot: number;
+  end: number;
+  len: number;
+  role: string;
+  room: string;
+};
+
+function weekdayLabel(date: string) {
+  const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  return labels[new Date(`${date}T00:00:00Z`).getUTCDay()];
+}
+
+function hourText(slots: number) {
+  const hours = slots * 0.5;
+  return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`;
+}
+
+function roleLabel(role: string) {
+  if (role === "host") return "Host";
+  if (role === "coord") return "Mod";
+  return "Daily";
+}
+
+function collectShiftSegments(payload: SchedulePayload, staffName: string, nextWeek: boolean) {
   const dates = new Set(weekDates(nextWeek));
   const rooms = payload.rooms || [];
   const schedAll = payload.schedAll || {};
@@ -102,12 +127,8 @@ function buildScheduleText(payload: SchedulePayload, staffName: string, nextWeek
     }
   }
 
-  if (!items.length) {
-    return `${staffName}, you have no scheduled shifts ${nextWeek ? "next week" : "this week"}.`;
-  }
-
   items.sort((a, b) => a.date.localeCompare(b.date) || a.slot - b.slot || a.room.localeCompare(b.room));
-  const lines = [`${staffName}'s schedule ${nextWeek ? "next week" : "this week"}:`];
+  const segments: ShiftSegment[] = [];
   let i = 0;
   while (i < items.length) {
     const cur = items[i];
@@ -123,23 +144,41 @@ function buildScheduleText(payload: SchedulePayload, staffName: string, nextWeek
       end = items[j].slot;
       j++;
     }
-    const roleLabel = cur.role === "host" ? "Host" : cur.role === "coord" ? "Coordinator" : "Daily Work";
-    lines.push(`${cur.date} ${slotLabel(cur.slot)}-${slotEndLabel(end)} ${cur.room} ${roleLabel}`);
+    segments.push({ date: cur.date, slot: cur.slot, end, len: end - cur.slot + 1, role: cur.role, room: cur.room });
     i = j;
   }
-  return lines.join("\n");
+  return segments;
 }
 
 function buildSchedulePost(payload: SchedulePayload, staffName: string, nextWeek: boolean) {
-  const text = buildScheduleText(payload, staffName, nextWeek);
-  const lines = text.split("\n");
+  const segments = collectShiftSegments(payload, staffName, nextWeek);
   const title = `${staffName}'s Schedule ${nextWeek ? "Next Week" : "This Week"}`;
-  const content = [
-    [{ tag: "text", text: lines[0], style: ["bold"] }],
-    ...lines.slice(1).map((line) => [{ tag: "text", text: line }]),
+  const totalSlots = segments.reduce((sum, seg) => sum + seg.len, 0);
+  const roles = Array.from(new Set(segments.map((seg) => roleLabel(seg.role))));
+  const content: any[] = [
+    [
+      { tag: "text", text: staffName, style: ["bold"] },
+      { tag: "text", text: roles.length ? `  ${roles.join(" / ")}` : "" },
+      { tag: "text", text: `  ${hourText(totalSlots)}`, style: ["bold"] },
+    ],
   ];
-  if (lines.length === 1) {
+
+  if (!segments.length) {
+    content.push([{ tag: "text", text: `No scheduled shifts ${nextWeek ? "next week" : "this week"}.` }]);
     content.push([{ tag: "text", text: "You can check again after the schedule is updated." }]);
+  } else {
+    for (const seg of segments) {
+      const label = roleLabel(seg.role);
+      content.push([
+        { tag: "text", text: `${weekdayLabel(seg.date)} ${seg.date.slice(5)}  ` },
+        { tag: "text", text: `[${label}]`, style: ["bold"] },
+        { tag: "text", text: `  ${seg.room}  ${slotLabel(seg.slot)}-${slotEndLabel(seg.end)} (${hourText(seg.len)})` },
+      ]);
+    }
+    content.push([
+      { tag: "text", text: "Subtotal", style: ["bold"] },
+      { tag: "text", text: `  ${hourText(totalSlots)}`, style: ["bold"] },
+    ]);
   }
   return {
     en_us: {
