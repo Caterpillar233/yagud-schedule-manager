@@ -10,6 +10,7 @@ input,select{-webkit-user-select:auto;user-select:auto}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f6fa;color:#1a1a1a;font-size:14px}
 body.auth-lock .topbar,body.auth-lock .app{display:none}
 body.viewer-mode .admin-only{display:none!important}
+body:not(.viewer-mode) .viewer-only{display:none!important}
 .topbar{background:#fff;border-bottom:1px solid #e8e8e8;padding:0 20px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;gap:8px}
 .tl{display:flex;align-items:center;gap:10px;flex-shrink:0}
 .back{font-size:13px;color:#999;text-decoration:none}.back:hover{color:#1456f0}
@@ -180,6 +181,13 @@ body:not(.auth-lock) .auth-panel{display:none}
 </div>
 
 <div class="app">
+<div class="toolbar no-print viewer-only">
+  <div style="display:flex;align-items:center;gap:7px">
+    <span class="tlbl" id="viewer-week-label">Week start:</span>
+    <input type="date" id="viewer-week-start" onchange="viewerRebuildDays()" style="width:148px">
+    <button class="btn btn-sm btn-blue" onclick="viewerRebuildDays()" id="viewer-gen">Generate</button>
+  </div>
+</div>
 <div class="toolbar no-print admin-only">
   <div style="display:flex;align-items:center;gap:7px">
     <span class="tlbl" id="el-week">Week start:</span>
@@ -457,24 +465,37 @@ function toggleLang(){
 function _params(){return new URLSearchParams(location.search);}
 function _isViewerUrl(){return _params().get('viewer')==='1'||_params().has('open_id')||_params().has('staff');}
 function viewerApplies(name){return viewerMode&&viewerStaff&&name===viewerStaff;}
-function slotHasViewer(date,slot){
-  if(!viewerMode||!viewerStaff) return true;
+function viewerSlot(date,slot){
+  if(!viewerMode||!viewerStaff) return null;
   for(const rm of rooms){
     const sc=schedAll[rm.id]||{};
     if(rm.daily){
       const v=sc[`${date}_${slot}_daily`];
-      if(Array.isArray(v)&&v.includes(viewerStaff)) return true;
-    }else if(sc[`${date}_${slot}_host`]===viewerStaff||sc[`${date}_${slot}_coord`]===viewerStaff){
-      return true;
+      if(Array.isArray(v)&&v.includes(viewerStaff)){
+        return {room:rm, host:viewerStaff, coord:'', daily:true};
+      }
+    }else{
+      const host=sc[`${date}_${slot}_host`]||'';
+      const coord=sc[`${date}_${slot}_coord`]||'';
+      if(host===viewerStaff||coord===viewerStaff) return {room:rm, host, coord, daily:false};
     }
   }
-  return false;
+  return null;
+}
+function slotHasViewer(date,slot){
+  if(!viewerMode||!viewerStaff) return true;
+  return !!viewerSlot(date,slot);
 }
 function applyViewerChrome(){
   if(!viewerMode) return;
   document.body.classList.add('viewer-mode');
   document.getElementById('el-badge').textContent=viewerStaff||'Viewer';
   document.getElementById('el-title').textContent=viewerStaff?`${viewerStaff}'s Schedule`:'Schedule Viewer';
+  const leg=document.getElementById('el-leg3');
+  if(leg) leg.textContent='Only your shifts and same-slot partners are shown';
+  const w=document.getElementById('week-start');
+  const vw=document.getElementById('viewer-week-start');
+  if(w&&vw) vw.value=w.value;
   currentRoom='r1';
   sched=schedAll[currentRoom]||{};
   ['time','settings'].forEach(t=>{const p=document.getElementById('pane-'+t); if(p) p.style.display='none';});
@@ -553,7 +574,16 @@ function rebuildDays(){
     const dw=d.getDay(), mo=d.getMonth()+1, da=d.getDate();
     days.push({date:gds(d), en:EN[dw]+' '+mo+'/'+da, zh:'周'+ZH[dw]+' '+mo+'/'+da, we:dw===0||dw===6});
   }
-  renderAll(); autosave();
+  renderAll();
+  if(!viewerMode) autosave();
+}
+function viewerRebuildDays(){
+  const src=document.getElementById('viewer-week-start');
+  const dst=document.getElementById('week-start');
+  if(!src||!dst) return;
+  dst.value=src.value;
+  rebuildDays();
+  if(document.getElementById('pane-host').style.display!=='none') renderHostView();
 }
 
 // ═══════════════════════════════════════
@@ -627,7 +657,8 @@ function renderGrid(){
     h+=`<tr class="${rowCls}"><td class="${tcCls}">${timeStr}</td>`;
     days.forEach(d=>{
       const tdCls=d.we?'we-bg':'';
-      if(viewerMode&&!slotHasViewer(d.date,s)){
+      const vslot=viewerMode?viewerSlot(d.date,s):null;
+      if(viewerMode&&!vslot){
         h+=`<td class="${tdCls}"><div class="split"><div class="sl2 empty"></div><div class="sl2 empty"></div></div></td>`;
         return;
       }
@@ -639,16 +670,19 @@ function renderGrid(){
         return;
       }
       const hk=`${d.date}_${s}_host`, ck=`${d.date}_${s}_coord`;
-      const hn=sched[hk]||'', cn=sched[ck]||'';
-      const hi=staff.findIndex(x=>x.name===hn&&x.role==='host');
-      const ci=staff.findIndex(x=>x.name===cn&&x.role==='coord');
+      const hn=viewerMode&&vslot?vslot.host:(sched[hk]||''), cn=viewerMode&&vslot?vslot.coord:(sched[ck]||'');
+      let hi=staff.findIndex(x=>x.name===hn&&x.role==='host');
+      let ci=staff.findIndex(x=>x.name===cn&&x.role==='coord');
+      if(viewerMode&&hi<0) hi=staff.findIndex(x=>x.name===hn);
+      if(viewerMode&&ci<0) ci=staff.findIndex(x=>x.name===cn);
       const hName=viewerMode&&!viewerApplies(hn)&&viewerApplies(cn)?hn:hn;
       const cName=viewerMode&&!viewerApplies(cn)&&viewerApplies(hn)?cn:cn;
+      const rmTitle=viewerMode&&vslot?` title="${vslot.room.name||vslot.room.nameZh||vslot.room.id}"`:'';
       const hSlot=hi>=0
-        ?`<div class="sl2 hs" data-k="${hk}" data-r="host" style="background:${HL[staff[hi].c%10]};color:${HC[staff[hi].c%10]}"><span class="sln">${hName}</span></div>`
+        ?`<div class="sl2 hs" data-k="${hk}" data-r="host"${rmTitle} style="background:${HL[staff[hi].c%10]};color:${HC[staff[hi].c%10]}"><span class="sln">${hName}</span></div>`
         :`<div class="sl2 hs empty" data-k="${hk}" data-r="host">${viewerMode?'':'+'}</div>`;
       const cSlot=ci>=0
-        ?`<div class="sl2" data-k="${ck}" data-r="coord" style="background:${HL[staff[ci].c%10]};color:${HC[staff[ci].c%10]}"><span class="sln">${cName}</span></div>`
+        ?`<div class="sl2" data-k="${ck}" data-r="coord"${rmTitle} style="background:${HL[staff[ci].c%10]};color:${HC[staff[ci].c%10]}"><span class="sln">${cName}</span></div>`
         :`<div class="sl2 empty" data-k="${ck}" data-r="coord">${viewerMode?'':'+'}</div>`;
       h+=`<td class="${tdCls}"><div class="split">${hSlot}${cSlot}</div></td>`;
     });
@@ -900,13 +934,17 @@ function renderHostView(){
   const c=document.getElementById('hgrid');
   if(!days.length){c.innerHTML=`<div style="color:#bbb;padding:1rem">${T('pane-empty')}</div>`;return;}
   c.innerHTML='';
+  if(viewerMode&&!viewerStaff){
+    c.innerHTML=`<div style="color:#bbb;padding:1rem">Unable to identify your schedule.</div>`;
+    return;
+  }
   const groups=new Map();
-  staff.forEach(s=>{
+  const staffSource=viewerMode?staff.filter(s=>s.name===viewerStaff):staff;
+  staffSource.forEach(s=>{
     if(!groups.has(s.name)) groups.set(s.name,[]);
     groups.get(s.name).push(s);
   });
   groups.forEach((entries,name)=>{
-    if(viewerMode&&name!==viewerStaff) return;
     const head=entries[0];
     const hc=HC[head.c%10],hl=HL[head.c%10];
     const segs=[];
