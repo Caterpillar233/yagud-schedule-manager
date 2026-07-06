@@ -269,6 +269,7 @@ body:not(.auth-lock) .auth-panel{display:none}
 // ═══════════════════════════════════════
 const HC=['#1456f0','#1565c0','#0288d1','#00838f','#00b96b','#388e3c','#e67e22','#8e24aa','#e53935','#6d4c41'];
 const HL=['#e8effe','#e3f2fd','#e1f5fe','#e0f7fa','#e6faf2','#e8f5e9','#fff3e0','#f3e5f5','#ffebee','#efebe9'];
+const MAX_STAFF=50;
 
 let lang='en';
 let staff=[
@@ -1021,7 +1022,7 @@ function renderSettings(){
       <button class="del" onclick="rmStaff(${i})">×</button>`;
     c.appendChild(row);
   });
-  if(staff.length<10){
+  if(staff.length<MAX_STAFF){
     const add=document.createElement('div'); add.style.cssText='display:flex;gap:7px;margin-top:8px';
     add.innerHTML=`
       <input class="sinp" id="ns" placeholder="${T('staff-ph')}" style="width:120px">
@@ -1068,7 +1069,7 @@ function changeRole(i,v){
 }
 function addStaff(){
   const n=(document.getElementById('ns').value||'').trim(), r=document.getElementById('nr').value;
-  if(!n||staff.find(s=>s.name===n&&s.role===r)||staff.length>=10) return;
+  if(!n||staff.find(s=>s.name===n&&s.role===r)||staff.length>=MAX_STAFF) return;
   staff.push({name:n,role:r,c:staff.length%10});
   document.getElementById('ns').value=''; renderAll(); autosave();
 }
