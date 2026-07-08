@@ -305,6 +305,10 @@ const AUTH_USER='andymunvye01';
 const AUTH_PASS_HASH='98df8a43098af931abe2650b3ee19ad59a4764994f3d774460958bd55c3d0a1b';
 const AUTH_SESSION_KEY='yagud_admin_auth';
 let appStarted=false;
+let _lastOnlineUpdatedAt='';
+let _onlinePollTimer=null;
+let _dirtySinceOnlineLoad=false;
+let _syncingRemote=false;
 
 // ═══════════════════════════════════════
 // i18n
@@ -330,6 +334,8 @@ const LANG={
     'cloud-not-configured':'Online database is not configured yet',
     'cloud-save-ok':'Saved online',
     'cloud-load-ok':'Loaded from online database',
+    'cloud-refresh-ok':'Updated from online database',
+    'cloud-stale-reload':'Newer online data found. Reloaded latest schedule.',
     'cloud-migrate-ok':'Local schedule migrated online',
     'cloud-save-fail':'Online save failed',
     'cloud-load-fail':'Online load failed',
@@ -376,6 +382,8 @@ const LANG={
     'cloud-not-configured':'尚未配置线上数据库',
     'cloud-save-ok':'已保存到线上数据库',
     'cloud-load-ok':'已从线上数据库读取',
+    'cloud-refresh-ok':'已同步线上最新排班',
+    'cloud-stale-reload':'检测到线上已有更新，已重新读取最新排班',
     'cloud-migrate-ok':'本地历史排班已同步到线上',
     'cloud-save-fail':'线上保存失败',
     'cloud-load-fail':'线上读取失败',
@@ -1166,27 +1174,80 @@ function _onlineHeaders(extra){
     'Content-Type':'application/json'
   },extra||{});
 }
+function _markDirty(){
+  if(!_syncingRemote) _dirtySinceOnlineLoad=true;
+}
+function _onlineIsNewer(remoteUpdatedAt){
+  if(!remoteUpdatedAt) return false;
+  if(!_lastOnlineUpdatedAt) return true;
+  return Date.parse(remoteUpdatedAt)>Date.parse(_lastOnlineUpdatedAt);
+}
 async function _writeOnline(){
   if(!_onlineReady()) return false;
+  const remote=await _readOnlineRow();
+  if(remote&&_onlineIsNewer(remote.updated_at)){
+    await _applyOnlineRow(remote);
+    showToast(T('cloud-stale-reload'));
+    return false;
+  }
+  const updatedAt=new Date().toISOString();
   const res=await fetch(_onlineEndpoint('?on_conflict=id'),{
     method:'POST',
     headers:_onlineHeaders({Prefer:'resolution=merge-duplicates'}),
-    body:JSON.stringify({id:ONLINE_DB.id,payload:_buildPayload(),updated_at:new Date().toISOString()})
+    body:JSON.stringify({id:ONLINE_DB.id,payload:_buildPayload(),updated_at:updatedAt})
   });
   if(!res.ok) throw new Error(await res.text());
+  _lastOnlineUpdatedAt=updatedAt;
+  _dirtySinceOnlineLoad=false;
   return true;
 }
-async function _readOnline(){
+async function _readOnlineRow(selectPayload=true){
   if(!_onlineReady()) return null;
-  const q='?id=eq.'+encodeURIComponent(ONLINE_DB.id)+'&select=payload&limit=1';
+  const q='?id=eq.'+encodeURIComponent(ONLINE_DB.id)+'&select='+(selectPayload?'payload,updated_at':'updated_at')+'&limit=1';
   const res=await fetch(_onlineEndpoint(q),{headers:_onlineHeaders()});
   if(!res.ok) throw new Error(await res.text());
   const rows=await res.json();
-  return rows&&rows[0]?rows[0].payload:null;
+  return rows&&rows[0]?rows[0]:null;
+}
+async function _readOnline(){
+  const row=await _readOnlineRow(true);
+  if(!row) return null;
+  _lastOnlineUpdatedAt=row.updated_at||'';
+  return row.payload;
+}
+async function _applyOnlineRow(row){
+  if(!row||!row.payload) return false;
+  _syncingRemote=true;
+  const ok=_applyStore(row.payload);
+  _syncingRemote=false;
+  if(!ok) return false;
+  _lastOnlineUpdatedAt=row.updated_at||'';
+  _dirtySinceOnlineLoad=false;
+  try{ localStorage.setItem('sv5',JSON.stringify(_buildPayload())); }catch(e){}
+  if(days.length) document.getElementById('week-start').value=days[0].date;
+  renderRoomSwitch(); renderAll();
+  return true;
+}
+async function _refreshFromOnlineIfNeeded(force=false){
+  if(viewerMode||!_onlineReady()) return false;
+  const row=await _readOnlineRow(true);
+  if(!row) return false;
+  if(force||_onlineIsNewer(row.updated_at)){
+    return _applyOnlineRow(row);
+  }
+  return false;
+}
+function _startOnlinePolling(){
+  if(viewerMode||!_onlineReady()||_onlinePollTimer) return;
+  _onlinePollTimer=setInterval(()=>{
+    _refreshFromOnlineIfNeeded(false)
+      .then(changed=>{ if(changed) showToast(T('cloud-refresh-ok')); })
+      .catch(()=>{});
+  },15000);
 }
 function _writeStore(){
+  _markDirty();
   try{ localStorage.setItem('sv5',JSON.stringify(_buildPayload())); }catch(e){}
-  _writeOnline().catch(()=>{});
   _writeFile();
 }
 let _saveT=null;
@@ -1199,6 +1260,7 @@ function _readStore(){
   try{ return _applyStore(JSON.parse(d)); }catch(e){ return false; }
 }
 async function saveLocal(){
+  _markDirty();
   try{ localStorage.setItem('sv5',JSON.stringify(_buildPayload())); }catch(e){}
   if(!_onlineReady()){
     _writeFile();
@@ -1206,9 +1268,9 @@ async function saveLocal(){
     return;
   }
   try{
-    await _writeOnline();
+    const saved=await _writeOnline();
     _writeFile();
-    showToast(T('cloud-save-ok'));
+    if(saved) showToast(T('cloud-save-ok'));
   }catch(e){
     showToast(T('cloud-save-fail'));
   }
@@ -1219,6 +1281,7 @@ async function loadLocal(){
       const obj=await _readOnline();
       if(!obj){showToast(T('no-data'));return;}
       if(!_applyStore(obj)){showToast(T('cloud-load-fail'));return;}
+      _dirtySinceOnlineLoad=false;
       try{ localStorage.setItem('sv5',JSON.stringify(_buildPayload())); }catch(e){}
       if(days.length) document.getElementById('week-start').value=days[0].date;
       renderRoomSwitch(); renderAll(); showToast(T('cloud-load-ok'));
@@ -1454,7 +1517,20 @@ async function startApp(){
         .catch(()=>showToast(T('cloud-save-fail')));
     },500);
   }
+  _startOnlinePolling();
 }
+window.addEventListener('focus',()=>{
+  _refreshFromOnlineIfNeeded(false)
+    .then(changed=>{ if(changed) showToast(T('cloud-refresh-ok')); })
+    .catch(()=>{});
+});
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden){
+    _refreshFromOnlineIfNeeded(false)
+      .then(changed=>{ if(changed) showToast(T('cloud-refresh-ok')); })
+      .catch(()=>{});
+  }
+});
 (function init(){
   if(_isViewerUrl()){
     document.body.classList.remove('auth-lock');
