@@ -294,6 +294,7 @@ let ttStaff='';
 let viewerMode=false;
 let viewerStaff='';
 const VIEWER_DATA_URL='https://gmfggasqezvcisfdckkj.functions.supabase.co/viewer-data';
+const SCHEDULE_SAVE_URL='https://gmfggasqezvcisfdckkj.functions.supabase.co/schedule-save';
 const ONLINE_DB={
   provider:'supabase',
   url:'https://gmfggasqezvcisfdckkj.supabase.co',
@@ -1184,20 +1185,23 @@ function _onlineIsNewer(remoteUpdatedAt){
 }
 async function _writeOnline(){
   if(!_onlineReady()) return false;
-  const remote=await _readOnlineRow();
-  if(remote&&_onlineIsNewer(remote.updated_at)){
-    await _applyOnlineRow(remote);
+  const res=await fetch(SCHEDULE_SAVE_URL,{
+    method:'POST',
+    headers:_onlineHeaders(),
+    body:JSON.stringify({
+      id:ONLINE_DB.id,
+      payload:_buildPayload(),
+      expected_updated_at:_lastOnlineUpdatedAt||null
+    })
+  });
+  const body=await res.json().catch(()=>({}));
+  if(res.status===409&&body&&body.payload){
+    await _applyOnlineRow({payload:body.payload,updated_at:body.updated_at});
     showToast(T('cloud-stale-reload'));
     return false;
   }
-  const updatedAt=new Date().toISOString();
-  const res=await fetch(_onlineEndpoint('?on_conflict=id'),{
-    method:'POST',
-    headers:_onlineHeaders({Prefer:'resolution=merge-duplicates'}),
-    body:JSON.stringify({id:ONLINE_DB.id,payload:_buildPayload(),updated_at:updatedAt})
-  });
-  if(!res.ok) throw new Error(await res.text());
-  _lastOnlineUpdatedAt=updatedAt;
+  if(!res.ok) throw new Error(JSON.stringify(body));
+  _lastOnlineUpdatedAt=body.updated_at||new Date().toISOString();
   _dirtySinceOnlineLoad=false;
   return true;
 }
