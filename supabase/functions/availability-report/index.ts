@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { latestSubmissionsOnly } from "../_shared/availability.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,14 +18,14 @@ Deno.serve(async (req) => {
 
   const { data: submissions, error } = await supabase
     .from("availability_submissions")
-    .select("staff_name,lark_open_id,week_start,availability_text,created_at")
+    .select("id,staff_name,lark_open_id,week_start,availability_text,created_at")
     .eq("week_start", weekStart)
     .order("staff_name", { ascending: true })
     .order("created_at", { ascending: false });
 
   if (error) return Response.json({ error: "report_unavailable" }, { status: 500, headers: corsHeaders });
 
-  return Response.json({ weekStart, submissions: submissions || [] }, { headers: corsHeaders });
+  return Response.json({ weekStart, submissions: latestSubmissionsOnly(submissions || []) }, { headers: corsHeaders });
 });
 
 function pad(n: number) {

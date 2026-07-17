@@ -84,6 +84,7 @@ Supabase Scheduled Functions or an external scheduler can call this endpoint wee
 
 Current production schedule:
 
+- Wednesday 9:00 AM Pacific: regular availability reminder.
 - Thursday 9:00 AM Pacific: regular availability reminder.
 - Friday 9:00 AM Pacific: regular availability reminder.
 - Friday 5:00 PM Pacific: final call reminder.

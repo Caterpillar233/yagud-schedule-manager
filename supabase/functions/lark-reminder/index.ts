@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { hasSubmittedAvailability } from "../_shared/availability.ts";
 import { sendLarkPost } from "../_shared/lark.ts";
 
 const corsHeaders = {
@@ -36,13 +37,13 @@ Deno.serve(async (req) => {
     .eq("active", true);
   const { data: submissions } = await supabase
     .from("availability_submissions")
-    .select("staff_name")
+    .select("staff_name,lark_open_id")
     .eq("week_start", weekStart);
-  const submitted = new Set((submissions || []).map((s) => String(s.staff_name || "").trim().toLowerCase()));
   const missing = (people || [])
-    .filter((p) => p.staff_name && p.lark_open_id && !submitted.has(String(p.staff_name).trim().toLowerCase()))
+    .filter((p) => p.staff_name && p.lark_open_id && !hasSubmittedAvailability(p, submissions || []))
     .sort((a, b) => String(a.staff_name).localeCompare(String(b.staff_name)));
   const reportUrl = `https://caterpillar233.github.io/yagud-schedule-manager/availability-report.html?week_start=${weekStart}`;
+  const submitUrl = `https://caterpillar233.github.io/yagud-schedule-manager/availability.html?week_start=${weekStart}`;
   const post = {
     en_us: {
       title: isFinal
@@ -62,6 +63,7 @@ Deno.serve(async (req) => {
         [{ tag: "text", text: "Suggested format:" }],
         [{ tag: "text", text: "Name + date + available time range" }],
         [{ tag: "text", text: "Example: Vivian 7/6 10:00-14:00, 7/8 12:00-18:00" }],
+        [{ tag: "a", text: "Submit availability", href: submitUrl }],
         [{ tag: "a", text: "View availability summary", href: reportUrl }],
         [{ tag: "text", text: "Thank you!" }],
       ],

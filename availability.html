@@ -50,6 +50,7 @@ button:disabled{opacity:.55;cursor:not-allowed}
 <script>
 const SUPABASE_URL='https://gmfggasqezvcisfdckkj.supabase.co';
 const SUPABASE_KEY='sb_publishable_3Hz6hA8EbjgVTdunQhhgHQ_Is46_d5W';
+const SUBMIT_URL='https://gmfggasqezvcisfdckkj.functions.supabase.co/availability-submit';
 
 function pad(n){return String(n).padStart(2,'0');}
 function dateKey(d){return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
@@ -79,13 +80,12 @@ document.getElementById('form').addEventListener('submit',async e=>{
     availability_text:document.getElementById('availability').value.trim()
   };
   try{
-    const res=await fetch(`${SUPABASE_URL}/rest/v1/availability_submissions`,{
+    const res=await fetch(SUBMIT_URL,{
       method:'POST',
       headers:{
         apikey:SUPABASE_KEY,
         Authorization:`Bearer ${SUPABASE_KEY}`,
-        'Content-Type':'application/json',
-        Prefer:'return=minimal'
+        'Content-Type':'application/json'
       },
       body:JSON.stringify(body)
     });
