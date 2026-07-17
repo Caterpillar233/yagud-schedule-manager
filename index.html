@@ -310,6 +310,7 @@ let _lastOnlineUpdatedAt='';
 let _onlinePollTimer=null;
 let _dirtySinceOnlineLoad=false;
 let _syncingRemote=false;
+let _saveConflictPending=false;
 
 // ═══════════════════════════════════════
 // i18n
@@ -337,6 +338,7 @@ const LANG={
     'cloud-load-ok':'Loaded from online database',
     'cloud-refresh-ok':'Updated from online database',
     'cloud-stale-reload':'Newer online data found. Reloaded latest schedule.',
+    'cloud-conflict-keep-local':'Online data changed. Your edits are still here. Click Save again to overwrite online data, or Load to discard them.',
     'cloud-migrate-ok':'Local schedule migrated online',
     'cloud-save-fail':'Online save failed',
     'cloud-load-fail':'Online load failed',
@@ -385,6 +387,7 @@ const LANG={
     'cloud-load-ok':'已从线上数据库读取',
     'cloud-refresh-ok':'已同步线上最新排班',
     'cloud-stale-reload':'检测到线上已有更新，已重新读取最新排班',
+    'cloud-conflict-keep-local':'线上数据已有变化；当前编辑已保留。再次点击保存将覆盖线上，点击读取将放弃当前编辑。',
     'cloud-migrate-ok':'本地历史排班已同步到线上',
     'cloud-save-fail':'线上保存失败',
     'cloud-load-fail':'线上读取失败',
@@ -1191,18 +1194,20 @@ async function _writeOnline(){
     body:JSON.stringify({
       id:ONLINE_DB.id,
       payload:_buildPayload(),
-      expected_updated_at:_lastOnlineUpdatedAt||null
+      expected_updated_at:_lastOnlineUpdatedAt||null,
+      force:_saveConflictPending
     })
   });
   const body=await res.json().catch(()=>({}));
   if(res.status===409&&body&&body.payload){
-    await _applyOnlineRow({payload:body.payload,updated_at:body.updated_at});
-    showToast(T('cloud-stale-reload'));
+    _saveConflictPending=true;
+    showToast(T('cloud-conflict-keep-local'));
     return false;
   }
   if(!res.ok) throw new Error(JSON.stringify(body));
   _lastOnlineUpdatedAt=body.updated_at||new Date().toISOString();
   _dirtySinceOnlineLoad=false;
+  _saveConflictPending=false;
   return true;
 }
 async function _readOnlineRow(selectPayload=true){
@@ -1227,6 +1232,7 @@ async function _applyOnlineRow(row){
   if(!ok) return false;
   _lastOnlineUpdatedAt=row.updated_at||'';
   _dirtySinceOnlineLoad=false;
+  _saveConflictPending=false;
   try{ localStorage.setItem('sv5',JSON.stringify(_buildPayload())); }catch(e){}
   if(days.length) document.getElementById('week-start').value=days[0].date;
   renderRoomSwitch(); renderAll();
@@ -1234,6 +1240,7 @@ async function _applyOnlineRow(row){
 }
 async function _refreshFromOnlineIfNeeded(force=false){
   if(viewerMode||!_onlineReady()) return false;
+  if(_dirtySinceOnlineLoad&&!force) return false;
   const row=await _readOnlineRow(true);
   if(!row) return false;
   if(force||_onlineIsNewer(row.updated_at)){

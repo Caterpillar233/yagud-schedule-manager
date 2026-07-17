@@ -10,6 +10,7 @@ type SaveBody = {
   id?: string;
   payload?: unknown;
   expected_updated_at?: string;
+  force?: boolean;
 };
 
 Deno.serve(async (req) => {
@@ -45,7 +46,7 @@ Deno.serve(async (req) => {
     return Response.json({ error: "read_failed" }, { status: 500, headers: corsHeaders });
   }
 
-  if (current?.updated_at && body.expected_updated_at && current.updated_at !== body.expected_updated_at) {
+  if (!body.force && current?.updated_at && body.expected_updated_at && current.updated_at !== body.expected_updated_at) {
     return Response.json(
       {
         error: "conflict",
