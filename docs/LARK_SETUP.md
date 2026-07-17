@@ -119,7 +119,7 @@ Do not enable encrypted event payloads unless the Edge Function is updated to de
 - `What's my schedule` or `1`: reply with the sender's schedule.
 - `whoami`: reply with the sender's Lark Open ID.
 - `chat id`: reply with the current group chat ID.
-- `list members`: pull the current group member list, store open IDs in Supabase, and reply with a preview.
+- `list members` or `sync members`: admin-only command that pulls the current group member list, stores open IDs in Supabase, and sends the UID preview privately to the admin.
 - Bot menu click with event key `schedule_query`: reply with the sender's schedule.
 
 The `list members` command requires the bot to be in the group and the Lark permission:

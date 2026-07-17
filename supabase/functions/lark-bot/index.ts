@@ -79,6 +79,22 @@ function hasCommand(text: string, command: RegExp) {
   return command.test(text.replace(/\s+/g, " ").trim());
 }
 
+function normalizedText(text: string) {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function isAdminOpenId(openId: string) {
+  const configured = (Deno.env.get("LARK_ADMIN_OPEN_IDS") || "ou_3b3c0c34dec3e95165735e45caa7ca14")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+  return configured.includes(openId);
+}
+
+function isMemberSyncCommand(text: string) {
+  return /^(?:\/?list members|\/?sync members)$/i.test(normalizedText(text));
+}
+
 type ShiftSegment = {
   date: string;
   slot: number;
@@ -218,7 +234,11 @@ Deno.serve(async (req) => {
     await sendLarkText("open_id", openId, `Your Lark Open ID:\n${openId}`);
     return Response.json({ ok: true }, { headers: corsHeaders });
   }
-  if (hasCommand(text, /(?:^|\s)(list\s+members|members)(?:\s|$)/i) && currentChatId) {
+  if (isMemberSyncCommand(text) && currentChatId) {
+    if (!isAdminOpenId(openId)) {
+      await sendLarkText("open_id", openId, "This admin command is restricted.");
+      return Response.json({ ok: true }, { headers: corsHeaders });
+    }
     try {
       const members = await listLarkChatMembers(currentChatId);
       const rows = members
@@ -235,14 +255,14 @@ Deno.serve(async (req) => {
       }
       const preview = rows.slice(0, 30).map((m) => `${m.member_name || "(no name)"}: ${m.member_open_id}`);
       await sendLarkText(
-        "chat_id",
-        currentChatId,
+        "open_id",
+        openId,
         [`Found ${rows.length} members.`, ...preview, rows.length > 30 ? `...and ${rows.length - 30} more.` : ""]
           .filter(Boolean)
           .join("\n"),
       );
     } catch (e) {
-      await sendLarkText("chat_id", currentChatId, `I couldn't read the group member list. Please check the app permission: im:chat.members:read.\n${String(e).slice(0, 500)}`);
+      await sendLarkText("open_id", openId, `I couldn't read the group member list. Please check the app permission: im:chat.members:read.\n${String(e).slice(0, 500)}`);
     }
     return Response.json({ ok: true }, { headers: corsHeaders });
   }
