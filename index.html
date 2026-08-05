@@ -520,7 +520,7 @@ function applyViewerChrome(){
 const pad=n=>String(n).padStart(2,'0');
 const gds=d=>d.toISOString().slice(0,10);
 const SLOTS_PER_DAY=48;
-function slotLabel(s){const h=Math.floor(s/2),m=(s%2)*30;return pad(h)+':'+pad(m);}
+function slotLabel(s){const h=Math.floor(s/2),m=(s%2)*30,hh=h%12||12,ap=h<12?'AM':'PM';return hh+':'+pad(m)+' '+ap;}
 function slotEndLabel(s){return slotLabel((s+1)%SLOTS_PER_DAY);}
 
 // ═══════════════════════════════════════
@@ -666,7 +666,7 @@ function renderGrid(){
     const bandCls=Math.floor(s/2)%2===1?' hour-band':'';
     const rowCls=(daily?'daily-row':'')+bandCls+(halfEnd?' half-end':'');
     const tcCls=isHour?'tc':'tc half';
-    const timeStr=isHour?(pad(s/2)+':00'):(pad((s-1)/2)+':30');
+    const timeStr=slotLabel(s);
     h+=`<tr class="${rowCls}"><td class="${tcCls}">${timeStr}</td>`;
     days.forEach(d=>{
       const tdCls=d.we?'we-bg':'';
@@ -924,7 +924,7 @@ function renderTimeTable(){
     const bandCls=Math.floor(s/2)%2===1?' hour-band':'';
     const rowCls=bandCls+(halfEnd?' half-end':'');
     const tcCls=isHour?'tc':'tc half';
-    const timeStr=isHour?(pad(s/2)+':00'):(pad((s-1)/2)+':30');
+    const timeStr=slotLabel(s);
     h+=`<tr class="${rowCls}"><td class="${tcCls}">${timeStr}</td>`;
     days.forEach(d=>{
       const tdCls=d.we?'we-bg':'';
