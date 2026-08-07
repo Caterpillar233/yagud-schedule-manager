@@ -275,6 +275,7 @@ let lang='en';
 let staff=[
   {name:'Host A',  role:'host',  c:0},
   {name:'Host B',  role:'host',  c:1},
+  {name:'Melody',  role:'host',  c:2},
   {name:'Coord A', role:'coord', c:4},
 ];
 let rooms=[
@@ -518,7 +519,7 @@ function applyViewerChrome(){
 // UTILS
 // ═══════════════════════════════════════
 const pad=n=>String(n).padStart(2,'0');
-const gds=d=>d.toISOString().slice(0,10);
+const gds=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const SLOTS_PER_DAY=48;
 function slotLabel(s){const h=Math.floor(s/2),m=(s%2)*30,hh=h%12||12,ap=h<12?'AM':'PM';return hh+':'+pad(m)+' '+ap;}
 function slotEndLabel(s){return slotLabel((s+1)%SLOTS_PER_DAY);}
