@@ -16,6 +16,8 @@ export type AvailabilitySubmission = {
 const STAFF_ALIASES: Record<string, string> = {
   "gabby": "gabriela",
   "gabriela": "gabriela",
+  "jasmine": "jasmine",
+  "jasmine rodriguez": "jasmine",
   "stephanie": "stephenie",
   "stephanie comeaux": "stephenie",
   "stephenie": "stephenie",
