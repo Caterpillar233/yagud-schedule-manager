@@ -85,15 +85,22 @@ Supabase Scheduled Functions or an external scheduler can call this endpoint wee
 Current production schedule:
 
 - Wednesday 9:00 AM Pacific: regular availability reminder.
+- Wednesday 12:00 PM Pacific: regular availability reminder.
+- Wednesday 5:00 PM Pacific: regular availability reminder.
 - Thursday 9:00 AM Pacific: regular availability reminder.
-- Friday 9:00 AM Pacific: regular availability reminder.
-- Friday 5:00 PM Pacific: final call reminder.
+- Thursday 12:00 PM Pacific: regular availability reminder.
+- Thursday 5:00 PM Pacific: final call reminder.
+
+Reminder refreshes the current Lark group member list before sending. It mentions only mapped users who are active, still in the reminder group, missing an availability submission, and not Andi.
 
 Supabase Cron runs in UTC. The deployed schedules use Pacific daylight time conversion:
 
-- `0 16 * * 4`
-- `0 16 * * 5`
-- `0 0 * * 6`
+- `0 16 * * 3` Wednesday 9:00 AM Pacific daylight time
+- `0 19 * * 3` Wednesday 12:00 PM Pacific daylight time
+- `0 0 * * 4` Wednesday 5:00 PM Pacific daylight time
+- `0 16 * * 4` Thursday 9:00 AM Pacific daylight time
+- `0 19 * * 4` Thursday 12:00 PM Pacific daylight time
+- `0 0 * * 5` Thursday 5:00 PM Pacific daylight time
 
 If the team needs exact 9:00 AM / 5:00 PM Pacific during standard time as well, update the cron expressions when daylight saving time changes or move scheduling to a timezone-aware external scheduler.
 

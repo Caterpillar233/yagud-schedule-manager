@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { hasSubmittedAvailability } from "../_shared/availability.ts";
-import { sendLarkPost } from "../_shared/lark.ts";
+import { listLarkChatMembers, sendLarkPost } from "../_shared/lark.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,19 +35,44 @@ Deno.serve(async (req) => {
     .from("lark_user_map")
     .select("staff_name,lark_open_id,display_name")
     .eq("active", true);
+
+  let currentMemberIds = new Set<string>();
+  try {
+    const members = await listLarkChatMembers(chatId);
+    const rows = members
+      .map((m) => ({
+        chat_id: chatId,
+        member_open_id: m.member_id || m.open_id || m.user_id || "",
+        member_name: m.name || m.en_name || m.nickname || "",
+        raw: m,
+        last_seen_at: new Date().toISOString(),
+      }))
+      .filter((m) => m.member_open_id);
+    currentMemberIds = new Set(rows.map((m) => m.member_open_id));
+    if (rows.length) {
+      await supabase.from("lark_group_members").upsert(rows, { onConflict: "chat_id,member_open_id" });
+    }
+  } catch (e) {
+    console.error("Unable to refresh Lark group member status", e);
+  }
+
   const { data: submissions } = await supabase
     .from("availability_submissions")
     .select("staff_name,lark_open_id")
     .eq("week_start", weekStart);
   const missing = (people || [])
-    .filter((p) => p.staff_name && p.lark_open_id && !hasSubmittedAvailability(p, submissions || []))
+    .filter((p) => p.staff_name && p.lark_open_id)
+    .filter((p) => !currentMemberIds.size || currentMemberIds.has(String(p.lark_open_id).trim()))
+    .filter((p) => String(p.staff_name).trim().toLowerCase() !== "andi")
+    .filter((p) => String(p.lark_open_id).trim() !== "ou_3b3c0c34dec3e95165735e45caa7ca14")
+    .filter((p) => !hasSubmittedAvailability(p, submissions || []))
     .sort((a, b) => String(a.staff_name).localeCompare(String(b.staff_name)));
   const reportUrl = `https://caterpillar233.github.io/yagud-schedule-manager/availability-report.html?week_start=${weekStart}`;
   const submitUrl = `https://caterpillar233.github.io/yagud-schedule-manager/availability.html?week_start=${weekStart}`;
   const post = {
     en_us: {
       title: isFinal
-        ? "Final Call: Next Week Availability Due Today at 5:00 PM"
+        ? "Final Call: Next Week Availability Due Before Thursday Midnight"
         : "Reminder: Please Share Your Availability for Next Week",
       content: [
         [{
@@ -56,7 +81,7 @@ Deno.serve(async (req) => {
             ? "This is the final call to submit your availability for next week."
             : "Please reply in this group with your availability for next week.",
         }],
-        [{ tag: "text", text: isFinal ? "Deadline: today at 5:00 PM." : "Deadline: Friday at 5:00 PM.", style: ["bold"] }],
+        [{ tag: "text", text: "Deadline: before Thursday midnight.", style: ["bold"] }],
         missing.length
           ? missing.map((p) => ({ tag: "at", user_id: p.lark_open_id, user_name: p.display_name || p.staff_name }))
           : [{ tag: "text", text: "Everyone has submitted. Thank you!" }],
