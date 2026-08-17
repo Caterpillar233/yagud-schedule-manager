@@ -523,6 +523,13 @@ const gds=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const SLOTS_PER_DAY=48;
 function slotLabel(s){const h=Math.floor(s/2),m=(s%2)*30,hh=h%12||12,ap=h<12?'AM':'PM';return hh+':'+pad(m)+' '+ap;}
 function slotEndLabel(s){return slotLabel((s+1)%SLOTS_PER_DAY);}
+function stableColorIndex(name){let h=0;for(const ch of String(name||'')){h=(h*31+ch.charCodeAt(0))>>>0;}return h%10;}
+function staffStyle(name,role){
+  let si=staff.findIndex(x=>x.name===name&&x.role===role);
+  if(si<0) si=staff.findIndex(x=>x.name===name);
+  const c=si>=0?staff[si].c:stableColorIndex(name);
+  return {ok:!!name,c,bg:HL[c%10],fg:HC[c%10]};
+}
 
 // ═══════════════════════════════════════
 // ROOMS
@@ -633,9 +640,8 @@ function dailyChipsHtml(arr){
   if(!arr||!arr.length) return '+';
   const max=3;
   const head=arr.slice(0,max).map(name=>{
-    const si=staff.findIndex(x=>x.name===name); if(si<0) return '';
-    const s=staff[si];
-    return `<span class="dchip" style="background:${HL[s.c%10]};color:${HC[s.c%10]}">${name}</span>`;
+    const s=staffStyle(name,'daily');
+    return `<span class="dchip" style="background:${s.bg};color:${s.fg}">${name}</span>`;
   }).join('');
   const more=arr.length>max?`<span class="dmore" title="${arr.slice(max).join(', ')}">+${arr.length-max}</span>`:'';
   return head+more;
@@ -685,18 +691,16 @@ function renderGrid(){
       }
       const hk=`${d.date}_${s}_host`, ck=`${d.date}_${s}_coord`;
       const hn=viewerMode&&vslot?vslot.host:(sched[hk]||''), cn=viewerMode&&vslot?vslot.coord:(sched[ck]||'');
-      let hi=staff.findIndex(x=>x.name===hn&&x.role==='host');
-      let ci=staff.findIndex(x=>x.name===cn&&x.role==='coord');
-      if(viewerMode&&hi<0) hi=staff.findIndex(x=>x.name===hn);
-      if(viewerMode&&ci<0) ci=staff.findIndex(x=>x.name===cn);
+      const hStyle=staffStyle(hn,'host');
+      const cStyle=staffStyle(cn,'coord');
       const hName=viewerMode&&!viewerApplies(hn)&&viewerApplies(cn)?hn:hn;
       const cName=viewerMode&&!viewerApplies(cn)&&viewerApplies(hn)?cn:cn;
       const rmTitle=viewerMode&&vslot?` title="${vslot.room.name||vslot.room.nameZh||vslot.room.id}"`:'';
-      const hSlot=hi>=0
-        ?`<div class="sl2 hs" data-k="${hk}" data-r="host"${rmTitle} style="background:${HL[staff[hi].c%10]};color:${HC[staff[hi].c%10]}"><span class="sln">${hName}</span></div>`
+      const hSlot=hStyle.ok
+        ?`<div class="sl2 hs" data-k="${hk}" data-r="host"${rmTitle} style="background:${hStyle.bg};color:${hStyle.fg}"><span class="sln">${hName}</span></div>`
         :`<div class="sl2 hs empty" data-k="${hk}" data-r="host">${viewerMode?'':'+'}</div>`;
-      const cSlot=ci>=0
-        ?`<div class="sl2" data-k="${ck}" data-r="coord"${rmTitle} style="background:${HL[staff[ci].c%10]};color:${HC[staff[ci].c%10]}"><span class="sln">${cName}</span></div>`
+      const cSlot=cStyle.ok
+        ?`<div class="sl2" data-k="${ck}" data-r="coord"${rmTitle} style="background:${cStyle.bg};color:${cStyle.fg}"><span class="sln">${cName}</span></div>`
         :`<div class="sl2 empty" data-k="${ck}" data-r="coord">${viewerMode?'':'+'}</div>`;
       h+=`<td class="${tdCls}"><div class="split">${hSlot}${cSlot}</div></td>`;
     });
@@ -773,12 +777,11 @@ function refreshSlot(key,role){
     el.innerHTML=dailyChipsHtml(arr);
     return;
   }
-  const name=sched[key]||''; const si=staff.findIndex(x=>x.name===name&&x.role===role);
+  const name=sched[key]||''; const s=staffStyle(name,role);
   const isH=role==='host';
-  if(si>=0){
-    const s=staff[si];
+  if(s.ok){
     el.className=`sl2${isH?' hs':''}`;
-    el.style.background=HL[s.c%10]; el.style.color=HC[s.c%10];
+    el.style.background=s.bg; el.style.color=s.fg;
     el.innerHTML=`<span class="sln">${name}</span>`;
   } else {
     el.className=`sl2${isH?' hs':''} empty`;
@@ -1073,11 +1076,6 @@ function changeRole(i,v){
   if(v===old){ renderAll(); return; }
   if(staff.some((s,j)=>j!==i&&s.name===n&&s.role===v)){ renderAll(); return; }
   staff[i].role=v;
-  Object.values(schedAll).forEach(sc=>{
-    Object.keys(sc).forEach(k=>{
-      if(k.endsWith('_'+old)&&sc[k]===n) delete sc[k];
-    });
-  });
   renderAll(); autosave();
 }
 function addStaff(){
@@ -1087,20 +1085,7 @@ function addStaff(){
   document.getElementById('ns').value=''; renderAll(); autosave();
 }
 function rmStaff(i){
-  const n=staff[i].name, r=staff[i].role;
   staff.splice(i,1);
-  Object.values(schedAll).forEach(sc=>{
-    Object.keys(sc).forEach(k=>{
-      const v=sc[k];
-      if(Array.isArray(v)){
-        const filt=v.filter(x=>x!==n);
-        if(filt.length===0) delete sc[k];
-        else if(filt.length!==v.length) sc[k]=filt;
-      } else if(k.endsWith('_'+r)&&v===n){
-        delete sc[k];
-      }
-    });
-  });
   renderAll(); autosave();
 }
 
