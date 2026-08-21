@@ -29,11 +29,12 @@ Deno.serve(async (req) => {
 
   const staffName = String(body.staff_name || "").trim();
   const openId = String(body.lark_open_id || "").trim() || null;
-  const weekStart = String(body.week_start || "").trim();
+  let weekStart = String(body.week_start || "").trim();
   const availabilityText = String(body.availability_text || "").trim();
   if (!staffName || staffName.length > 120 || !/^\d{4}-\d{2}-\d{2}$/.test(weekStart) || !availabilityText || availabilityText.length > 4000) {
     return Response.json({ error: "invalid_payload" }, { status: 400, headers: corsHeaders });
   }
+  weekStart = correctedWeekStart(weekStart, availabilityText);
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -78,3 +79,37 @@ Deno.serve(async (req) => {
   if (insertError) return Response.json({ error: "insert_failed" }, { status: 500, headers: corsHeaders });
   return Response.json({ ok: true, id: data.id, created_at: data.created_at }, { headers: corsHeaders });
 });
+
+function pad(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function dateKey(d: Date) {
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+}
+
+function mondayOf(date: Date) {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = d.getUTCDay();
+  d.setUTCDate(d.getUTCDate() - (day === 0 ? 6 : day - 1));
+  return d;
+}
+
+function correctedWeekStart(providedWeekStart: string, text: string) {
+  const provided = new Date(`${providedWeekStart}T00:00:00Z`);
+  if (Number.isNaN(provided.getTime())) return providedWeekStart;
+  const year = provided.getUTCFullYear();
+  const weeks = new Map<string, number>();
+  const re = /\b(0?[1-9]|1[0-2])[\/.-](0?[1-9]|[12]\d|3[01])\b/g;
+  for (const match of text.matchAll(re)) {
+    const month = Number(match[1]);
+    const day = Number(match[2]);
+    const candidate = new Date(Date.UTC(year, month - 1, day));
+    if (candidate.getUTCMonth() !== month - 1 || candidate.getUTCDate() !== day) continue;
+    const monday = dateKey(mondayOf(candidate));
+    weeks.set(monday, (weeks.get(monday) || 0) + 1);
+  }
+  if (!weeks.size) return providedWeekStart;
+  const inferred = Array.from(weeks.entries()).sort((a, b) => b[1] - a[1] || b[0].localeCompare(a[0]))[0][0];
+  return inferred > providedWeekStart ? inferred : providedWeekStart;
+}
