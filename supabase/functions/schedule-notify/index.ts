@@ -42,6 +42,11 @@ type NotifyBody = {
   week_start?: string;
 };
 
+type LocalNow = {
+  date: string;
+  slot: number;
+};
+
 function pad(n: number) {
   return String(n).padStart(2, "0");
 }
@@ -76,6 +81,29 @@ function weekDates(weekStart: string) {
   return new Set(Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)));
 }
 
+function currentLocalSlot() {
+  const timeZone = Deno.env.get("SCHEDULE_TIME_ZONE") || "America/Los_Angeles";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const value = (type: string) => parts.find((part) => part.type === type)?.value || "00";
+  const date = `${value("year")}-${value("month")}-${value("day")}`;
+  const minutes = Number(value("hour")) * 60 + Number(value("minute"));
+  return { date, slot: Math.floor(minutes / 30) };
+}
+
+function isFutureSlot(date: string, slot: number, now: LocalNow) {
+  if (date > now.date) return true;
+  if (date < now.date) return false;
+  return slot > now.slot;
+}
+
 function roleLabel(role: string) {
   if (role === "host") return "Host";
   if (role === "coord") return "Mod";
@@ -106,7 +134,7 @@ function parseKey(key: string) {
   return { date, slot, role };
 }
 
-function collectChanges(oldPayload: SchedulePayload, newPayload: SchedulePayload, allowedDates: Set<string>) {
+function collectChanges(oldPayload: SchedulePayload, newPayload: SchedulePayload, allowedDates: Set<string>, now: LocalNow) {
   const oldSched = oldPayload.schedAll || {};
   const newSched = newPayload.schedAll || {};
   const roomIds = new Set([...Object.keys(oldSched), ...Object.keys(newSched)]);
@@ -120,6 +148,7 @@ function collectChanges(oldPayload: SchedulePayload, newPayload: SchedulePayload
       const parsed = parseKey(key);
       if (!parsed) continue;
       if (!allowedDates.has(parsed.date)) continue;
+      if (!isFutureSlot(parsed.date, parsed.slot, now)) continue;
       const oldNames = new Set(normalizeList(oldRoom[key]));
       const newNames = new Set(normalizeList(newRoom[key]));
       const role = Array.isArray(oldRoom[key]) || Array.isArray(newRoom[key]) ? "daily" : parsed.role;
@@ -226,6 +255,7 @@ Deno.serve(async (req) => {
     return Response.json({ error: "invalid_payload" }, { status: 400, headers: corsHeaders });
   }
   const allowedDates = weekDates(weekStart);
+  const localNow = currentLocalSlot();
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -282,7 +312,7 @@ Deno.serve(async (req) => {
     return Response.json({ ok: true, initialized: true, notified_staff_count: 0, added_count: 0, removed_count: 0, skipped_unmapped_staff: [] }, { headers: corsHeaders });
   }
 
-  const changes = collectChanges(baselinePayload as SchedulePayload, schedule.payload as SchedulePayload, allowedDates);
+  const changes = collectChanges(baselinePayload as SchedulePayload, schedule.payload as SchedulePayload, allowedDates, localNow);
   const segments = segmentChanges(changes);
   const addedCount = changes.filter((c) => c.type === "added").length;
   const removedCount = changes.filter((c) => c.type === "removed").length;
@@ -362,5 +392,7 @@ Deno.serve(async (req) => {
     removed_count: removedCount,
     skipped_unmapped_staff: [...skipped].sort(),
     failed,
+    week_start: weekStart,
+    future_only_after: localNow,
   }, { status: failed.length ? 207 : 200, headers: corsHeaders });
 });
