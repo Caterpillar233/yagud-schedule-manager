@@ -235,7 +235,11 @@ function buildPost(staff: string, added: Segment[], removed: Segment[], openId: 
     { tag: "text", text: "View details: ", style: ["bold"] },
     { tag: "a", text: "Check my Schedule", href },
   ]);
-  content.push([{ tag: "text", text: "Please contact the coordinator if anything looks incorrect." }]);
+  content.push([
+    { tag: "text", text: "Please contact " },
+    { tag: "at", user_id: "ou_3b3c0c34dec3e95165735e45caa7ca14", user_name: "Andi" },
+    { tag: "text", text: " if anything looks incorrect." },
+  ]);
 
   return {
     en_us: {
