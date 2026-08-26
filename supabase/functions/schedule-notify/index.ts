@@ -203,29 +203,38 @@ function weekRange(weekStart: string) {
   return `${dateLabel(weekStart)} - ${dateLabel(addDays(weekStart, 6))}`;
 }
 
-function segmentText(seg: Segment) {
-  return `${dateLabel(seg.date)} - ${formatTime(seg.slot)}-${formatTime(seg.end + 1)} - ${seg.room} - ${roleLabel(seg.role)}`;
+function segmentLine(seg: Segment, sign: string) {
+  return [
+    { tag: "text", text: `${sign} ${dateLabel(seg.date)}  `, style: ["bold"] },
+    { tag: "text", text: `${formatTime(seg.slot)}-${formatTime(seg.end + 1)}  ` },
+    { tag: "text", text: `${seg.room}  ` },
+    { tag: "text", text: roleLabel(seg.role), style: ["bold"] },
+  ];
 }
 
 function buildPost(staff: string, added: Segment[], removed: Segment[], openId: string, range: string) {
   const href = `https://caterpillar233.github.io/yagud-schedule-manager/?viewer=1&open_id=${encodeURIComponent(openId)}`;
   const content: any[] = [
-    [{ tag: "text", text: `Hi ${staff}, your schedule has been updated.` }],
+    [{ tag: "text", text: `Hi ${staff}, your schedule has been updated.`, style: ["bold"] }],
+    [{ tag: "text", text: `Week: ${range}` }],
   ];
 
   if (added.length) {
     content.push([{ tag: "text", text: "Added shifts:", style: ["bold"] }]);
-    for (const seg of added.slice(0, 20)) content.push([{ tag: "text", text: `+ ${segmentText(seg)}` }]);
+    for (const seg of added.slice(0, 20)) content.push(segmentLine(seg, "+"));
     if (added.length > 20) content.push([{ tag: "text", text: `+ ${added.length - 20} more added shifts. Please check the full schedule.` }]);
   }
 
   if (removed.length) {
     content.push([{ tag: "text", text: "Removed shifts:", style: ["bold"] }]);
-    for (const seg of removed.slice(0, 20)) content.push([{ tag: "text", text: `- ${segmentText(seg)}` }]);
+    for (const seg of removed.slice(0, 20)) content.push(segmentLine(seg, "-"));
     if (removed.length > 20) content.push([{ tag: "text", text: `- ${removed.length - 20} more removed shifts. Please check the full schedule.` }]);
   }
 
-  content.push([{ tag: "a", text: "Check my Schedule", href }]);
+  content.push([
+    { tag: "text", text: "View details: ", style: ["bold"] },
+    { tag: "a", text: "Check my Schedule", href },
+  ]);
   content.push([{ tag: "text", text: "Please contact the coordinator if anything looks incorrect." }]);
 
   return {
