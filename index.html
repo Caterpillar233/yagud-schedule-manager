@@ -1303,7 +1303,10 @@ async function notifyLarkChanges(){
     const res=await fetch(SCHEDULE_NOTIFY_URL,{
       method:'POST',
       headers:_onlineHeaders(),
-      body:JSON.stringify({id:ONLINE_DB.id})
+      body:JSON.stringify({
+        id:ONLINE_DB.id,
+        week_start:(days&&days[0]&&days[0].date)||document.getElementById('week-start').value
+      })
     });
     const body=await res.json().catch(()=>({}));
     if(!res.ok||body.ok===false) throw new Error(JSON.stringify(body));

@@ -16,6 +16,11 @@ type NotificationStatePayload = {
   last_notified_payload?: SchedulePayload;
   last_notified_schedule_updated_at?: string;
   last_notified_at?: string;
+  last_notified_by_week?: Record<string, {
+    payload?: SchedulePayload;
+    schedule_updated_at?: string;
+    notified_at?: string;
+  }>;
 };
 
 type ShiftChange = {
@@ -30,6 +35,11 @@ type ShiftChange = {
 type Segment = ShiftChange & {
   end: number;
   len: number;
+};
+
+type NotifyBody = {
+  id?: string;
+  week_start?: string;
 };
 
 function pad(n: number) {
@@ -54,6 +64,16 @@ function dateLabel(date: string) {
   const [year, month, day] = date.split("-").map(Number);
   if (!year || !month || !day) return date;
   return `${weekdayLabel(date)} ${month}/${day}`;
+}
+
+function addDays(date: string, count: number) {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + count);
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+}
+
+function weekDates(weekStart: string) {
+  return new Set(Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)));
 }
 
 function roleLabel(role: string) {
@@ -86,7 +106,7 @@ function parseKey(key: string) {
   return { date, slot, role };
 }
 
-function collectChanges(oldPayload: SchedulePayload, newPayload: SchedulePayload) {
+function collectChanges(oldPayload: SchedulePayload, newPayload: SchedulePayload, allowedDates: Set<string>) {
   const oldSched = oldPayload.schedAll || {};
   const newSched = newPayload.schedAll || {};
   const roomIds = new Set([...Object.keys(oldSched), ...Object.keys(newSched)]);
@@ -99,6 +119,7 @@ function collectChanges(oldPayload: SchedulePayload, newPayload: SchedulePayload
     for (const key of keys) {
       const parsed = parseKey(key);
       if (!parsed) continue;
+      if (!allowedDates.has(parsed.date)) continue;
       const oldNames = new Set(normalizeList(oldRoom[key]));
       const newNames = new Set(normalizeList(newRoom[key]));
       const role = Array.isArray(oldRoom[key]) || Array.isArray(newRoom[key]) ? "daily" : parsed.role;
@@ -149,17 +170,8 @@ function segmentChanges(changes: ShiftChange[]) {
   return segments;
 }
 
-function weekRange(payload: SchedulePayload) {
-  const dates = new Set<string>();
-  for (const room of Object.values(payload.schedAll || {})) {
-    for (const key of Object.keys(room || {})) {
-      const parsed = parseKey(key);
-      if (parsed) dates.add(parsed.date);
-    }
-  }
-  const sorted = [...dates].sort();
-  if (!sorted.length) return "Schedule";
-  return `${dateLabel(sorted[0])} - ${dateLabel(sorted[sorted.length - 1])}`;
+function weekRange(weekStart: string) {
+  return `${dateLabel(weekStart)} - ${dateLabel(addDays(weekStart, 6))}`;
 }
 
 function segmentText(seg: Segment) {
@@ -201,6 +213,20 @@ Deno.serve(async (req) => {
     return Response.json({ error: "method_not_allowed" }, { status: 405, headers: corsHeaders });
   }
 
+  let body: NotifyBody = {};
+  try {
+    body = await req.json();
+  } catch {
+    body = {};
+  }
+
+  const id = body.id || "main";
+  const weekStart = String(body.week_start || "").trim();
+  if (id !== "main" || !/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) {
+    return Response.json({ error: "invalid_payload" }, { status: 400, headers: corsHeaders });
+  }
+  const allowedDates = weekDates(weekStart);
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -209,7 +235,7 @@ Deno.serve(async (req) => {
   const { data: schedule, error: scheduleError } = await supabase
     .from("schedules")
     .select("payload,updated_at")
-    .eq("id", "main")
+    .eq("id", id)
     .maybeSingle();
 
   if (scheduleError || !schedule?.payload) {
@@ -228,16 +254,26 @@ Deno.serve(async (req) => {
 
   const now = new Date().toISOString();
   const lastState = (state?.payload || {}) as NotificationStatePayload;
-  if (!lastState.last_notified_payload) {
+  const weekStates = lastState.last_notified_by_week || {};
+  const weekState = weekStates[weekStart];
+  const baselinePayload = weekState?.payload || lastState.last_notified_payload;
+  if (!baselinePayload) {
+    const nextState: NotificationStatePayload = {
+      ...lastState,
+      last_notified_by_week: {
+        ...weekStates,
+        [weekStart]: {
+          payload: schedule.payload as SchedulePayload,
+          schedule_updated_at: schedule.updated_at,
+          notified_at: now,
+        },
+      },
+    };
     const { error: initError } = await supabase
       .from("schedules")
       .upsert({
         id: "lark_notification_state",
-        payload: {
-          last_notified_payload: schedule.payload,
-          last_notified_schedule_updated_at: schedule.updated_at,
-          last_notified_at: now,
-        },
+        payload: nextState,
         updated_at: now,
       }, { onConflict: "id" });
     if (initError) {
@@ -246,7 +282,7 @@ Deno.serve(async (req) => {
     return Response.json({ ok: true, initialized: true, notified_staff_count: 0, added_count: 0, removed_count: 0, skipped_unmapped_staff: [] }, { headers: corsHeaders });
   }
 
-  const changes = collectChanges(lastState.last_notified_payload as SchedulePayload, schedule.payload as SchedulePayload);
+  const changes = collectChanges(baselinePayload as SchedulePayload, schedule.payload as SchedulePayload, allowedDates);
   const segments = segmentChanges(changes);
   const addedCount = changes.filter((c) => c.type === "added").length;
   const removedCount = changes.filter((c) => c.type === "removed").length;
@@ -276,7 +312,7 @@ Deno.serve(async (req) => {
   const skipped = new Set<string>();
   const failed: Array<{ staff: string; message: string }> = [];
   let notified = 0;
-  const range = weekRange(schedule.payload as SchedulePayload);
+  const range = weekRange(weekStart);
 
   for (const [staff, staffSegments] of byStaff) {
     const mapping = mapByStaff.get(staff.trim().toLowerCase());
@@ -296,15 +332,22 @@ Deno.serve(async (req) => {
   }
 
   if (!failed.length) {
+    const nextState: NotificationStatePayload = {
+      ...lastState,
+      last_notified_by_week: {
+        ...weekStates,
+        [weekStart]: {
+          payload: schedule.payload as SchedulePayload,
+          schedule_updated_at: schedule.updated_at,
+          notified_at: now,
+        },
+      },
+    };
     const { error: writeError } = await supabase
       .from("schedules")
       .upsert({
         id: "lark_notification_state",
-        payload: {
-          last_notified_payload: schedule.payload,
-          last_notified_schedule_updated_at: schedule.updated_at,
-          last_notified_at: now,
-        },
+        payload: nextState,
         updated_at: now,
       }, { onConflict: "id" });
     if (writeError) {
