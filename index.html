@@ -213,6 +213,7 @@ body:not(.auth-lock) .auth-panel{display:none}
   <div style="display:flex;gap:7px;margin-left:auto">
     <button class="btn btn-sm" onclick="clearSched()" id="el-clear">Clear</button>
     <button class="btn btn-sm" onclick="saveLocal()" id="el-save">Save</button>
+    <button class="btn btn-sm btn-purple" onclick="notifyLarkChanges()" id="el-lark-notify">Lark Notification</button>
     <button class="btn btn-sm btn-blue" onclick="loadLocal()" id="el-load">Load</button>
   </div>
 </div>
@@ -296,6 +297,7 @@ let viewerMode=false;
 let viewerStaff='';
 const VIEWER_DATA_URL='https://gmfggasqezvcisfdckkj.functions.supabase.co/viewer-data';
 const SCHEDULE_SAVE_URL='https://gmfggasqezvcisfdckkj.functions.supabase.co/schedule-save';
+const SCHEDULE_NOTIFY_URL='https://gmfggasqezvcisfdckkj.functions.supabase.co/schedule-notify';
 const ONLINE_DB={
   provider:'supabase',
   url:'https://gmfggasqezvcisfdckkj.supabase.co',
@@ -343,6 +345,12 @@ const LANG={
     'cloud-migrate-ok':'Local schedule migrated online',
     'cloud-save-fail':'Online save failed',
     'cloud-load-fail':'Online load failed',
+    'lark-notify':'Lark Notification',
+    'lark-notify-saving':'Saving current schedule first...',
+    'lark-notify-init':'Lark notification baseline initialized. No message sent this time.',
+    'lark-notify-none':'No schedule changes since the last Lark notification.',
+    'lark-notify-ok':'Lark notifications sent',
+    'lark-notify-fail':'Lark notification failed',
     'no-brush-toast':'Please select a brush first',
     'pane-empty':'Please select a week start date first',
     'no-schedule':'No shifts this week',
@@ -392,6 +400,12 @@ const LANG={
     'cloud-migrate-ok':'本地历史排班已同步到线上',
     'cloud-save-fail':'线上保存失败',
     'cloud-load-fail':'线上读取失败',
+    'lark-notify':'Lark 通知',
+    'lark-notify-saving':'正在先保存当前排班...',
+    'lark-notify-init':'已初始化 Lark 通知基线。本次不会发送消息。',
+    'lark-notify-none':'距离上次 Lark 通知没有排班变化。',
+    'lark-notify-ok':'Lark 通知已发送',
+    'lark-notify-fail':'Lark 通知发送失败',
     'no-brush-toast':'请先选择笔刷',
     'pane-empty':'请先选择排班周起始日',
     'no-schedule':'本周暂无排班',
@@ -423,7 +437,7 @@ function applyLang(){
     'el-back':'back','el-title':'title','el-badge':'badge',
     'el-week':'week','el-gen':'gen','el-print':'print',
     'el-hbrush':'hbrush','el-cbrush':'cbrush','el-cur':'cur',
-    'el-clear':'clear','el-save':'save','el-load':'load',
+    'el-clear':'clear','el-save':'save','el-load':'load','el-lark-notify':'lark-notify',
     'el-logout':'logout',
     'el-s0':'s0','el-s1':'s1','el-s3':'s3',
     'el-tab0':'tab0','el-tab1':'tab1','el-tab3':'tab3','el-tab-time':'tab-time',
@@ -1270,6 +1284,48 @@ async function saveLocal(){
     if(saved) showToast(T('cloud-save-ok'));
   }catch(e){
     showToast(T('cloud-save-fail'));
+  }
+}
+async function notifyLarkChanges(){
+  if(!_onlineReady()){
+    showToast(T('cloud-not-configured'));
+    return;
+  }
+  const btn=document.getElementById('el-lark-notify');
+  if(btn) btn.disabled=true;
+  try{
+    showToast(T('lark-notify-saving'));
+    _markDirty();
+    try{ localStorage.setItem('sv5',JSON.stringify(_buildPayload())); }catch(e){}
+    const saved=await _writeOnline();
+    _writeFile();
+    if(!saved) return;
+    const res=await fetch(SCHEDULE_NOTIFY_URL,{
+      method:'POST',
+      headers:_onlineHeaders(),
+      body:JSON.stringify({id:ONLINE_DB.id})
+    });
+    const body=await res.json().catch(()=>({}));
+    if(!res.ok||body.ok===false) throw new Error(JSON.stringify(body));
+    if(body.initialized){
+      showToast(T('lark-notify-init'));
+      return;
+    }
+    const notified=body.notified_staff_count||0;
+    const added=body.added_count||0;
+    const removed=body.removed_count||0;
+    const skipped=Array.isArray(body.skipped_unmapped_staff)&&body.skipped_unmapped_staff.length
+      ? ` Skipped: ${body.skipped_unmapped_staff.join(', ')}.`
+      : '';
+    if(!added&&!removed){
+      showToast(T('lark-notify-none'));
+    }else{
+      showToast(`${T('lark-notify-ok')}: ${notified} staff, +${added}, -${removed}.${skipped}`);
+    }
+  }catch(e){
+    showToast(T('lark-notify-fail'));
+  }finally{
+    if(btn) btn.disabled=false;
   }
 }
 async function loadLocal(){
